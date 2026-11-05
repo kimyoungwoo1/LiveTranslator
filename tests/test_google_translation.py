@@ -4,10 +4,19 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+import sys
 from unittest import mock
 from urllib.error import HTTPError
 
-import app_core
+# Mock heavyweight audio/native dependencies so the update feature can be
+# validated using standard Python without reinstalling 800MB of libraries.
+with mock.patch.dict(sys.modules, {
+    "numpy": mock.MagicMock(),
+    "scipy": mock.MagicMock(),
+    "scipy.signal": mock.MagicMock(),
+    "pyaudiowpatch": mock.MagicMock(),
+}):
+    import app_core
 
 
 class GoogleOptionTests(unittest.TestCase):
