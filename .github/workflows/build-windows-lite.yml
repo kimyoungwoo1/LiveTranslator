@@ -20,11 +20,11 @@ jobs:
           pip install pyinstaller
       - name: Syntax check
         run: |
-          python -m py_compile main.py main_lite.py streaming_pipeline.py hooks/argos_lite.py
+          python -m py_compile launcher.py app_core.py updater.py streaming_pipeline.py hooks/argos_lite.py
       - name: Build without Stanza, PyTorch and SpaCy
         shell: pwsh
         run: |
-          python -m PyInstaller --noconfirm --clean --onedir --windowed --name LiveTranslator-Lite --runtime-hook hooks/argos_lite.py --exclude-module stanza --exclude-module torch --exclude-module torchaudio --exclude-module torchvision --exclude-module spacy --exclude-module thinc --collect-all faster_whisper --collect-all ctranslate2 --collect-all argostranslate --collect-all minisbd main_lite.py
+          python -m PyInstaller --noconfirm --clean --onedir --windowed --name LiveTranslator-Lite --runtime-hook hooks/argos_lite.py --exclude-module stanza --exclude-module torch --exclude-module torchaudio --exclude-module torchvision --exclude-module spacy --exclude-module thinc --collect-all faster_whisper --collect-all ctranslate2 --collect-all argostranslate --collect-all minisbd launcher.py
       - name: Frozen import smoke test
         shell: pwsh
         run: |
@@ -47,7 +47,7 @@ jobs:
       - name: Upload experimental lite EXE
         uses: actions/upload-artifact@v4
         with:
-          name: LiveTranslator-Windows-Lite-EXPERIMENTAL
+          name: LiveTranslator-Windows-Lite-UPDATER-TEST
           path: dist/LiveTranslator-Lite/
           if-no-files-found: error
           retention-days: 7
