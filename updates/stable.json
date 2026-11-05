@@ -1,14 +1,14 @@
 {
-  "version": "0.6.1",
+  "version": "0.6.2",
   "min_bootstrap": "0.6.0",
-  "notes": "In-app code updates are available. This patch keeps the existing speech and translation engine.",
+  "notes": "Add '자막 지우기' to clear original, translated text, and overlay subtitles without stopping translation or removing saved TXT files.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.1/app_core.py",
-      "git_sha1": "6a8889519993b1d19ef0e05d02a0fbb4c2971217"
+      "path": "updates/v0.6.2/app_core.py",
+      "git_sha1": "3a02be2893ad2061de3e0febc9eff9cb0b490b88"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.1/streaming_pipeline.py",
+      "path": "updates/v0.6.2/streaming_pipeline.py",
       "git_sha1": "ddc6100c1331879995a88094c9a9edeb7949d1bb"
     }
   }
