@@ -315,8 +315,12 @@ def should_finalize_audio(sample_count, silence_count, rate, interval_seconds,
                  or sample_count >= int(rate * maximum)))
 
 def run_stream(selected, interval_seconds, language, model, translate, emit_status,
-               emit_original, emit_result, stop_event, quality_mode=False, emit_audio_level=None):
+               emit_original, emit_result, stop_event, quality_mode=False, emit_audio_level=None,
+               emit_error=None):
     pending = queue.Queue(maxsize=6 if quality_mode else 4)
+    # Text translation must not stop Whisper from recognizing the next audio block.
+    translation_pending = queue.Queue(maxsize=40)
+    translated_dropped = [0]
     capture_done = threading.Event()
     skipped = [0]
     assembler = SentenceBuffer(interval_seconds) if quality_mode else None
@@ -396,22 +400,63 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
             capture_done.set()
 
     def deliver(text, source_lang, captured_at, asr_seconds):
+        """Queue finished sentences without blocking speech recognition."""
         if stop_event.is_set() or not text.strip():
             return
-        emit_status("완성된 문장 번역 중..." if quality_mode else "번역 중...")
-        translation_started = time.monotonic()
-        translated = text if source_lang == "ko" else translate(text, source_lang)
-        translation_seconds = time.monotonic() - translation_started
-        if stop_event.is_set():
-            return
-        emit_result(text, translated)
-        lag = time.monotonic() - captured_at
-        overload = " · CPU 처리 지연" if lag > 2.5 * interval_seconds else ""
-        emit_status(
-            f"번역 중 · 지연 {lag:.1f}초 · 인식 {asr_seconds:.1f}초 · "
-            f"번역 {translation_seconds:.1f}초 · 대기 {pending.qsize()}개 · "
-            f"건너뜀 {skipped[0]}개{overload}"
-        )
+        task = (text, source_lang, captured_at, asr_seconds)
+        try:
+            translation_pending.put_nowait(task)
+        except queue.Full:
+            # Never hold the ASR thread waiting on text translation.
+            # Drop the oldest *translation* task, not the captured audio.
+            try:
+                translation_pending.get_nowait()
+                translated_dropped[0] += 1
+            except queue.Empty:
+                pass
+            translation_pending.put_nowait(task)
+            emit_status(
+                f"번역 대기열 초과 · 오래된 번역 {translated_dropped[0]}개 생략 "
+                f"(원문 인식은 계속 진행)"
+            )
+
+    def translation_worker():
+        try:
+            while not stop_event.is_set():
+                try:
+                    text, source_lang, captured_at, asr_seconds = translation_pending.get(
+                        timeout=0.2
+                    )
+                except queue.Empty:
+                    continue
+                if stop_event.is_set():
+                    break
+                started = time.monotonic()
+                result = text if source_lang == "ko" else translate(text, source_lang)
+                duration = time.monotonic() - started
+                if stop_event.is_set():
+                    break
+                emit_result(text, result)
+                lag = time.monotonic() - captured_at
+                overload = " · 처리 지연" if lag > 2.5 * interval_seconds else ""
+                emit_status(
+                    f"번역 완료 · 지연 {lag:.1f}초 · 인식 {asr_seconds:.1f}초 · "
+                    f"번역 {duration:.1f}초 · 음성 대기 {pending.qsize()}개 · "
+                    f"번역 대기 {translation_pending.qsize()}개 · "
+                    f"음성 누락 {skipped[0]}개 · 번역 누락 {translated_dropped[0]}개"
+                    f"{overload}"
+                )
+        except Exception as exc:
+            if emit_error is not None:
+                emit_error(f"번역 오류: {exc}")
+            else:
+                emit_status(f"번역 오류: {exc}")
+            stop_event.set()
+
+    translation_thread = threading.Thread(
+        target=translation_worker, name="LiveTranslatorTranslate", daemon=True
+    )
+    translation_thread.start()
 
     thread = threading.Thread(target=capture, name="LiveTranslatorCapture", daemon=True)
     thread.start()
@@ -500,3 +545,4 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
     finally:
         stop_event.set()
         thread.join(timeout=2)
+        translation_thread.join(timeout=2)
