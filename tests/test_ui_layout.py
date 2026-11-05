@@ -55,6 +55,19 @@ class DashboardTests(unittest.TestCase):
             code = ast.get_source_segment(SRC, app_method(method))
             self.assertIn("self.set_live_indicator(", code)
 
+    def test_oriented_widgets_use_builtin_ttk_layouts(self):
+        """Regression: custom scrollbar styles cause missing Vertical.* layouts."""
+        ui = ast.get_source_segment(SRC, app_method("build_ui"))
+        self.assertIn('ttk.Scrollbar(text_row, orient="vertical"', ui)
+        self.assertIn('ttk.Panedwindow(outer, orient="vertical")', ui)
+        self.assertIn('ttk.Progressbar(meter, variable=self.audio_meter', ui)
+        for broken_style in (
+            'style="LT.TScrollbar"',
+            'style="LT.Horizontal.TProgressbar"',
+            'style="LT.TPanedwindow"',
+        ):
+            self.assertNotIn(broken_style, ui)
+
     def test_no_new_gui_or_external_dependencies(self):
         ui = ast.get_source_segment(SRC, app_method("build_ui"))
         self.assertIn('style.theme_use("clam")', ui)
