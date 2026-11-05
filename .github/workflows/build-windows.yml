@@ -19,9 +19,9 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
       - name: Check app
-        run: python -m py_compile main.py streaming_pipeline.py
+        run: python -m py_compile launcher.py app_core.py updater.py streaming_pipeline.py
       - name: Package application
-        run: python -m PyInstaller --noconfirm --clean --onedir --windowed --name LiveTranslator --collect-all faster_whisper --collect-all ctranslate2 --collect-all argostranslate main.py
+        run: python -m PyInstaller --noconfirm --clean --onedir --windowed --name LiveTranslator --collect-all faster_whisper --collect-all ctranslate2 --collect-all argostranslate launcher.py
       - name: Analyze packaged file sizes
         shell: pwsh
         run: |
@@ -42,7 +42,7 @@ jobs:
       - name: Upload test executable
         uses: actions/upload-artifact@v4
         with:
-          name: LiveTranslator-Windows-test
+          name: LiveTranslator-Windows-Updater-test
           path: dist/LiveTranslator/
           if-no-files-found: error
           retention-days: 7
