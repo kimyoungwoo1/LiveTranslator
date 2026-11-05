@@ -28,3 +28,9 @@ No microphone recordings, transcripts, settings, access tokens, installed packag
 - Test CPU and Bluetooth output device selection
 - Verify frozen EXE behavior
 - Signed / integrity-checked in-app update flow using public GitHub Releases
+
+## If the Whisper base model download stalls
+
+For machines whose Hugging Face Xet transfer stalls, run `download_base_model.bat` (right click the file on GitHub and download raw). It downloads the four required files using curl directly to `%LOCALAPPDATA%\LiveTranslator\models\base`, verifies the 145217532-byte model.bin, and keeps the model across app updates. Restart a build containing the local-model support after the download succeeds. The app now disables Xet transfers as a fallback.
+
+This does not establish that workplace policy allows these downloads; follow organizational security rules.
