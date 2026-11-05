@@ -1,7 +1,10 @@
 """Validate the redesigned Tkinter dashboard without requiring Windows GUI display."""
 import ast
+import os
+import sys
 from pathlib import Path
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = (ROOT / "app_core.py").read_text(encoding="utf-8")
@@ -67,6 +70,30 @@ class DashboardTests(unittest.TestCase):
             'style="LT.TPanedwindow"',
         ):
             self.assertNotIn(broken_style, ui)
+
+    @unittest.skipUnless(os.name == "nt", "Real Tk widget smoke test runs on Windows")
+    def test_windows_real_tk_window_opens_without_scrollbar_tclerror(self):
+        import tkinter as tk
+        try:
+            root = tk.Tk()
+        except tk.TclError as exc:
+            self.skipTest(f"Windows runner has no interactive desktop: {exc}")
+        root.withdraw()
+        try:
+            with mock.patch.dict(sys.modules, {
+                "numpy": mock.MagicMock(),
+                "scipy": mock.MagicMock(),
+                "scipy.signal": mock.MagicMock(),
+                "pyaudiowpatch": mock.MagicMock(),
+            }):
+                import app_core
+            with mock.patch.object(app_core.App, "refresh"):
+                app = app_core.App(root)
+                root.update_idletasks()
+            self.assertIsNotNone(app.original)
+            self.assertIsNotNone(app.translated)
+        finally:
+            root.destroy()
 
     def test_no_new_gui_or_external_dependencies(self):
         ui = ast.get_source_segment(SRC, app_method("build_ui"))
