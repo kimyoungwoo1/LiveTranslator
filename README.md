@@ -136,3 +136,11 @@ Note: An unresponsive Windows native driver can leave a daemon diagnostic thread
 This patch corrects a narrow class of clear English-to-Korean scale errors when the source has exactly one 'million', 'billion' or 'trillion' amount and the Korean translation contains exactly one simple '만', '억' or '조' number. Example: 'six billion euro' must be '60억 유로', not '6억 유로'. Ambiguous/compound/multiple amounts are left unchanged.
 
 This guard does not verify Whisper's transcription, infer context that is missing from 3-second speech fragments, or make Argos fluent like professionally edited subtitles. You can manually choose the **small** Whisper model and a 5-second recognition interval for a quality-versus-CPU-delay test; the extra speech model download is not triggered by the v0.6.10 code patch. Google Cloud Translation remains an optional online alternative.
+
+## Remember audio output between launches (v0.6.11)
+
+LiveTranslator now remembers the last explicitly selected or confirmed working audio source in the local settings file (name + loopback/microphone type, not volatile PortAudio device ID). On the next start it restores that source, even if Windows has renumbered devices. This fixes the app repeatedly starting with a silent 7.1 Surround device instead of the previously confirmed Razer headset.
+
+If no saved output is available, the first `번역 시작` automatically probes playback loopbacks for an audible signal and selects/saves the first one that is playing. This may take several seconds if a virtual driver times out; no microphone is auto-selected. After finding a source, translation starts automatically. Later starts use the saved source without an extra probe. You can still manually switch audio devices; changes are saved immediately.
+
+Apply using `업데이트 확인` to v0.6.11 and restart; a full EXE rebuild or model download is unnecessary. Selecting an output with `소리 찾기` and confirming it also saves your preference. If the output device is disconnected at start, automatic detection runs again.
