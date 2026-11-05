@@ -163,3 +163,17 @@ Apply by using **업데이트 확인** > v0.6.12 > restart on any updater-enable
 - The new bottom-right **프로그램 종료** button uses the same exit handler as the title-bar X. If translation is running it requests confirmation, signals capture to stop, saves current settings and closes the app.
 - The selected playback source, offline/Google translation mode and the existing updater remain intact. No new third-party UI dependency or EXE build is needed for an updater-enabled installation.
 - This is a Tkinter styling/layout patch. The interface has not yet been visually validated on every Windows display-scale configuration.
+
+## v0.6.14 Emergency startup hotfix: Tkinter scrollbar error
+
+If installing the v0.6.13 dark UI patch produces `_tkinter.TclError: Layout Vertical.LT.TScrollbar not found`, the error is a broken custom ttk scrollbar style, **not a Whisper model or audio driver problem**.
+
+**Recover without reinstalling the 800MB EXE or models:**
+
+1. Close the crash dialog and LiveTranslator.
+2. Press Win+R and open the Windows LocalAppData `LiveTranslator` folder.
+3. Rename the `code_patch` folder to `code_patch.broken` (choose another new backup name if that already exists). Do not delete `models`, `transcripts` or `settings.json`.
+4. Restart the same LiveTranslator.exe. Its bundled v0.6.0 bootstrap will be used because the broken patch is no longer activated.
+5. Click **업데이트 확인** and install **v0.6.14**, then restart. The new patch uses the built-in ttk scrollbar, progressbar and panedwindow layouts.
+
+Regression tests now include a Windows Tk window creation smoke test (when the runner has a desktop) and a static check forbidding invalid oriented scrollbar style names. The update does not change Whisper, Argos, Google, saved audio devices or user data.
