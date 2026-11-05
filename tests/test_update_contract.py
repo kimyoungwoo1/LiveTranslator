@@ -12,12 +12,17 @@ import updater
 ROOT = Path(__file__).resolve().parent.parent
 
 
+def published_bytes(path):
+    """Compare GitHub Raw LF bytes, not checkout-dependent Windows CRLF bytes."""
+    return path.read_bytes().replace(b"\r\n", b"\n")
+
+
 class UpdateTests(unittest.TestCase):
     def test_manifest_matches_repository_files(self):
         manifest = json.loads((ROOT / "updates" / "stable.json").read_text(encoding="utf-8"))
         updater._validate_manifest(manifest)
         for name, info in manifest["files"].items():
-            file_bytes = (ROOT / info["path"]).read_bytes()
+            file_bytes = published_bytes(ROOT / info["path"])
             self.assertEqual(updater._object_sha(file_bytes), info["git_sha1"])
             compile(file_bytes.decode("utf-8"), name, "exec")
 
@@ -27,7 +32,7 @@ class UpdateTests(unittest.TestCase):
             updater.MANIFEST_URL: json.dumps(manifest).encode("utf-8"),
         }
         files.update({
-            updater.REPO_RAW + item["path"]: (ROOT / item["path"]).read_bytes()
+            updater.REPO_RAW + item["path"]: published_bytes(ROOT / item["path"])
             for item in manifest["files"].values()
         })
         with tempfile.TemporaryDirectory() as td, patch.object(updater, "APP_DIR", Path(td)), patch.object(
