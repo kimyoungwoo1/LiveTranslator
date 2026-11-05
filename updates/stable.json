@@ -1,15 +1,15 @@
 {
-  "version": "0.6.4",
+  "version": "0.6.5",
   "min_bootstrap": "0.6.0",
-  "notes": "Single high-quality Argos offline profile: beam 4, float32, sentence-buffered translation and Whisper beam 3. Google Cloud remains independently selectable. Increased CPU load and subtitle delay are possible.",
+  "notes": "Fix Windows WASAPI [Errno -9996] Invalid device: prioritize the default playback loopback, resolve changing device indices by name, retry native multichannel and PCM formats, and preserve 5.1/7.1 channel audio. Argos high-quality and Google provider remain unchanged.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.4/app_core.py",
-      "git_sha1": "df2761be021bac9ec878675030d793a42e69594a"
+      "path": "updates/v0.6.5/app_core.py",
+      "git_sha1": "4383956794827cf0a305478c1be5319add8617d8"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.4/streaming_pipeline.py",
-      "git_sha1": "acf71754e928575f17e8b49684173a165bce6e78"
+      "path": "updates/v0.6.5/streaming_pipeline.py",
+      "git_sha1": "c42b7786ddfb6c83fef701f06af16d67b7fe10c2"
     }
   }
 }
