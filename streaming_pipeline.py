@@ -183,7 +183,16 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
                 else:
                     samples = np.frombuffer(buffer, dtype=np.float32)
                 if channels > 1:
-                    samples = samples.reshape(-1, channels).mean(axis=1)
+                    multichannel = samples.reshape(-1, channels)
+                    # 5.1/7.1 loopback often carries silence on unused channels.
+                    # Average only active channels to avoid attenuating speech.
+                    channel_energy = np.mean(multichannel * multichannel, axis=0)
+                    loudest = float(np.max(channel_energy))
+                    if loudest > 0:
+                        active = channel_energy >= loudest * 0.05
+                        samples = multichannel[:, active].mean(axis=1)
+                    else:
+                        samples = multichannel.mean(axis=1)
                 parts.append(samples)
                 count += samples.size
                 if count < target_samples:
