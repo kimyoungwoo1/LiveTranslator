@@ -111,6 +111,12 @@ class AudioSelectionTests(unittest.TestCase):
         app.scan_audio = mock.MagicMock()
         app.engine = mock.MagicMock()
         app.engine.get.return_value = "argos"
+        app.language = mock.MagicMock()
+        app.language.get.return_value = "en"
+        app.model = mock.MagicMock()
+        app.model.get.return_value = "base"
+        app.seconds = mock.MagicMock()
+        app.seconds.get.return_value = "3"
         app.persist = mock.MagicMock()
         app.stop_signal = None
         app.audio_meter = mock.MagicMock()
