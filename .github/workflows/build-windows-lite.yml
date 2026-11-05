@@ -18,6 +18,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
+      - name: Verify update package without network
+        run: python -m unittest discover -s tests -v
       - name: Syntax check
         run: |
           python -m py_compile launcher.py app_core.py updater.py streaming_pipeline.py hooks/argos_lite.py
