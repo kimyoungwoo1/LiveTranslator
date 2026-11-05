@@ -6,6 +6,8 @@ on:
     branches: [main]
     paths:
       - "main_lite.py"
+      - "main.py"
+      - "streaming_pipeline.py"
       - "hooks/argos_lite.py"
       - ".github/workflows/build-windows-lite.yml"
 
@@ -26,7 +28,7 @@ jobs:
           pip install pyinstaller
       - name: Syntax check
         run: |
-          python -m py_compile main.py main_lite.py hooks/argos_lite.py
+          python -m py_compile main.py main_lite.py streaming_pipeline.py hooks/argos_lite.py
       - name: Build without Stanza, PyTorch and SpaCy
         shell: pwsh
         run: |
