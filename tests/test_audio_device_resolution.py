@@ -136,5 +136,25 @@ class AudioDeviceTests(unittest.TestCase):
 
 
 
+    def test_automatic_first_start_stops_at_first_audible_output(self):
+        silence = ("🔊 기본 출력 | 7.1", 1, True, "7.1")
+        audible = ("🔊 출력 | Razer", 2, True, "Razer")
+        other = ("🔊 출력 | HDMI", 3, True, "HDMI")
+        with mock.patch.object(
+            self.module, "probe_with_timeout",
+            side_effect=[
+                {"name": "7.1", "rms": 0.0, "peak": 0.0, "channels": 8},
+                {"name": "Razer", "rms": 0.04, "peak": 0.3, "channels": 2},
+            ],
+        ) as probe:
+            results = self.module.find_active_loopback(
+                [silence, audible, other], stop_on_signal=True
+            )
+        self.assertEqual(len(results), 2)
+        self.assertEqual(probe.call_count, 2)
+        self.assertEqual(results[-1]["device"], audible)
+
+
+
 if __name__ == "__main__":
     unittest.main()
