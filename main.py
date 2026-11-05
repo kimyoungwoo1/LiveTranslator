@@ -23,7 +23,7 @@ TRANSCRIPTS.mkdir(exist_ok=True)
 class App:
     def __init__(self, root):
         self.root = root
-        root.title("LiveTranslator - 오프라인 한국어 자막")
+        root.title("LiveTranslator v0.5 - 오프라인 한국어 자막")
         root.geometry("880x710")
         self.events = queue.Queue()
         self.stop_signal = threading.Event()
@@ -60,7 +60,7 @@ class App:
     def build_ui(self):
         frame = ttk.Frame(self.root, padding=18)
         frame.pack(fill="both", expand=True)
-        ttk.Label(frame, text="LiveTranslator", font=("Segoe UI", 20, "bold")).pack(anchor="w")
+        ttk.Label(frame, text="LiveTranslator v0.5", font=("Segoe UI", 20, "bold")).pack(anchor="w")
         ttk.Label(frame, text="PC 출력 장치(WASAPI Loopback) 또는 마이크를 선택해 한국어로 번역합니다.").pack(anchor="w", pady=(5, 16))
         row = ttk.Frame(frame)
         row.pack(fill="x", pady=5)
