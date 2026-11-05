@@ -84,3 +84,14 @@ There is ONE Argos mode (no speed/balanced/high-quality selector). It preserves 
 - There is still a bounded queue and skipped-chunk counter: severe overload can cause missing words even in high-quality mode. No claim of professional-grade simultaneous interpretation is made.
 
 Use **업데이트 확인** on an updater-enabled v0.6+ EXE to install the current source patch. This does **not** require downloading a new executable or a new speech model.
+
+## WASAPI invalid device fix (v0.6.5)
+
+If starting translation shows `오디오 캡처 오류: [Errno -9996] Invalid device`:
+
+- Click **오디오 장치 > 새로고침**, then choose the speaker/headphone **Loopback** device through which Windows is *actually playing* audio. Do not select virtual 7.1 Surround output unless it really is your active playback device.
+- The **기본 출력** WASAPI loopback is now listed first on fresh starts. Previously selected devices are still preserved by exact name if available.
+- Device indices are resolved at capture time, using their current names and live PortAudio indices; a disconnected device is reported instead of silently capturing from an unrelated microphone or speaker.
+- Loopback capture tries its advertised native channel count (including 6/8 channels), 16-bit PCM first and float32 next. Stereo/mono fallbacks follow if the device rejects native channels. Multichannel audio is downmixed from active channels to avoid excessive attenuation.
+- In-app update: choose **업데이트 확인** > **v0.6.5** > restart. No EXE download is required for updater-enabled clients. If an audio driver exposes a loopback but refuses capture altogether, changing the Windows active playback device or driver may still be necessary.
+- This is a defensive compatibility fix validated at code level only; it has not been tested on the user's specific 7.1 virtual device.
