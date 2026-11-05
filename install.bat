@@ -4,9 +4,15 @@ cd /d "%~dp0"
 where py >nul 2>&1
 if errorlevel 1 goto no_python
 py -3.13 --version >nul 2>&1
-if not errorlevel 1 set "PY=-3.13" & goto setup
+if not errorlevel 1 (
+  set "PY=-3.13"
+  goto setup
+)
 py -3.12 --version >nul 2>&1
-if not errorlevel 1 set "PY=-3.12" & goto setup
+if not errorlevel 1 (
+  set "PY=-3.12"
+  goto setup
+)
 :no_python
 echo Python 3.12 or 3.13 is required.
 pause
