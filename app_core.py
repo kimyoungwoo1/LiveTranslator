@@ -347,7 +347,7 @@ class App:
         if self.running:
             messagebox.showinfo(
                 "모델 진단",
-                "번역 중입니다. Whisper 모델은 이미 로드됐습니다.\\n"
+                "번역 중입니다. Whisper 모델은 이미 로드됐습니다.\n"
                 "먼저 중지하면 Argos 모델도 검사할 수 있습니다.",
             )
             return
@@ -393,7 +393,7 @@ class App:
             except Exception as exc:
                 notes.append(f"모델 진단 실패 · {type(exc).__name__}: {exc}")
             finally:
-                self.events.put(("model_report", "\\n".join(notes)))
+                self.events.put(("model_report", "\n".join(notes)))
 
         threading.Thread(target=job, daemon=True, name="ModelDiagnostic").start()
 
