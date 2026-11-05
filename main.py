@@ -2,6 +2,10 @@
 import datetime
 import os
 os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
+# Favor responsive CPU translation; beam size 1 trades some quality for speed.
+os.environ.setdefault("ARGOS_CHUNK_TYPE", "MINISBD")
+os.environ.setdefault("ARGOS_DEVICE_TYPE", "cpu")
+os.environ.setdefault("ARGOS_BEAM_SIZE", "1")
 import json
 import queue
 import threading
@@ -194,12 +198,22 @@ class App:
                 self._cached_model_key = path
             if self.stop_signal.is_set():
                 return
+            translators = {}
+
+            def translate_cached(original, lang):
+                if lang not in translators:
+                    translator = argostranslate.translate.get_translation_from_codes(lang, "ko")
+                    if translator is None:
+                        raise RuntimeError(f"{lang}→ko 번역 모델이 없습니다. 먼저 설치해 주세요.")
+                    translators[lang] = translator
+                return translators[lang].translate(original)
+
             run_stream(
                 selected=selected,
                 interval_seconds=seconds,
                 language=language,
                 model=self._cached_model,
-                translate=lambda original, lang: argostranslate.translate.translate(original, lang, "ko"),
+                translate=translate_cached,
                 emit_status=lambda status: self.events.put(("status", status)),
                 emit_original=lambda original: self.events.put(("original", original)),
                 emit_result=lambda original, translated: self.events.put(("result", (original, translated))),
