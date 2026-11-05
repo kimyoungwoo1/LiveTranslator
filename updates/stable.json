@@ -1,14 +1,14 @@
 {
-  "version": "0.6.12",
+  "version": "0.6.13",
   "min_bootstrap": "0.6.0",
-  "notes": "Improve offline high-quality recognition without new model downloads: adapt Whisper chunk boundaries to brief speech pauses (minimum 3 seconds, bounded to configured interval plus up to 2 seconds), use beam size 5 and recent-transcript vocabulary context; reset context after silence or dropped audio. Google translation keeps original fixed interval. More CPU processing and extra subtitle delay are possible.",
+  "notes": "Refresh LiveTranslator UI with a compact dark dashboard: grouped audio/engine controls, prominent Start/Stop/Clear, resizable original/Korean transcript panes and clearer status/meter. Add a dedicated 프로그램 종료 button with confirmation while translating. Preserve Argos, Google, model diagnostics, updater, and audio source persistence.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.12/app_core.py",
-      "git_sha1": "546e5947ff825f80cf76dac308a1ed9f51f8e2e6"
+      "path": "updates/v0.6.13/app_core.py",
+      "git_sha1": "e1281b5c5714d68388034cc5b966a68f6fa18e87"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.12/streaming_pipeline.py",
+      "path": "updates/v0.6.13/streaming_pipeline.py",
       "git_sha1": "274f462519c3c208c95b4c67174281f6b853548b"
     }
   }
