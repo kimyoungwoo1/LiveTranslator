@@ -141,6 +141,7 @@ class App:
         self._cached_model = None
         self._cached_model_key = None
         self._model_check_busy = False
+        self._audio_scan_busy = False
         self.running = False
         self.devices = []
         self.settings = self.load_settings()
@@ -186,6 +187,7 @@ class App:
         self.device_combo = ttk.Combobox(row, textvariable=self.device, state="readonly")
         self.device_combo.pack(side="left", fill="x", expand=True, padx=5)
         ttk.Button(row, text="새로고침", command=self.refresh).pack(side="left")
+        ttk.Button(row, text="소리 찾기", command=self.scan_audio).pack(side="left", padx=(5, 0))
         row = ttk.Frame(frame)
         row.pack(fill="x", pady=6)
         ttk.Label(row, text="원본 언어", width=13).pack(side="left")
@@ -319,6 +321,96 @@ class App:
         self.device_combo.current(match if match is not None else 0)
         self.status.set("오디오 장치 목록을 갱신했습니다. 실제 소리가 나오는 출력 장치를 선택하세요.")
 
+    def scan_audio(self):
+        """Search actual playback loopbacks for sound, independently of AI models."""
+        if self.running:
+            messagebox.showinfo("오디오 검사", "번역을 중지한 뒤 소리 찾기를 실행해 주세요.")
+            return
+        if self._audio_scan_busy:
+            return
+        if not self.devices:
+            messagebox.showerror("오디오 검사", "오디오 장치를 먼저 새로고침해 주세요.")
+            return
+        selected_idx = self.device_combo.current()
+        if selected_idx < 0:
+            return
+        selected = self.devices[selected_idx]
+        self._audio_scan_busy = True
+        self.status.set("오디오 신호 검사 중 · 유튜브 영상을 소리와 함께 재생해 주세요...")
+        devices = list(self.devices)
+
+        def worker():
+            try:
+                from streaming_pipeline import find_active_loopback, probe_audio_source
+                if selected[2]:
+                    results = find_active_loopback(
+                        devices, seconds=1.0,
+                        progress=lambda i, count, label: self.events.put(
+                            ("status", f"오디오 검사 중 ({i}/{count}) · {label}")
+                        ),
+                    )
+                else:
+                    self.events.put(("status", "선택한 마이크 신호 확인 중..."))
+                    result = probe_audio_source(selected, seconds=1.5)
+                    results = [{"device": selected, **result}]
+                self.events.put(("scan_completed", results))
+            except Exception as exc:
+                self.events.put(("scan_failed", str(exc)))
+
+        threading.Thread(target=worker, name="AudioSignalProbe", daemon=True).start()
+
+    def show_audio_scan(self, results):
+        """Never automatically switch audio sources without confirmation."""
+        if not results:
+            messagebox.showinfo("오디오 검사", "검사할 오디오 장치가 없습니다.")
+            return
+        lines = []
+        best = None
+        for item in results:
+            label = item["device"][0]
+            if "error" in item:
+                lines.append(f"· {label}: 연결 불가")
+                continue
+            rms = float(item["rms"])
+            db = 20.0 * math.log10(max(rms, 1e-7))
+            lines.append(f"· {label}: {db:.0f} dBFS")
+            if best is None or rms > best["rms"]:
+                best = item
+        playing = best is not None and best["rms"] >= 0.001
+        details = "\n".join(lines[:12])
+        if not playing:
+            self.status.set("오디오 검사 완료 · 소리 신호가 감지되지 않았습니다.")
+            messagebox.showwarning(
+                "오디오 검사",
+                "현재 선택 가능한 장치에서 뚜렷한 소리를 감지하지 못했습니다.\n"
+                "유튜브를 재생한 채 Windows 볼륨 믹서에서 Chrome 출력 장치를 확인해 주세요.\n\n"
+                + details,
+            )
+            return
+        best_name = best["device"][3] if len(best["device"]) > 3 else best["device"][0]
+        self.status.set(f"오디오 검사 완료 · 신호 감지: {best_name}")
+        current = self.device_combo.current()
+        current_device = self.devices[current] if current >= 0 else None
+        if current_device != best["device"]:
+            if messagebox.askyesno(
+                "오디오 장치 추천",
+                f"가장 큰 소리 신호가 감지된 장치:\n{best_name}\n\n"
+                f"이 장치로 변경할까요?\n\n{details}",
+            ):
+                match = next(
+                    (i for i, item in enumerate(self.devices) if item == best["device"]),
+                    None,
+                )
+                if match is not None:
+                    self.device_combo.current(match)
+                    self.status.set(f"오디오 장치 변경 완료: {best_name} · 번역 시작을 눌러주세요.")
+        else:
+            messagebox.showinfo(
+                "오디오 검사",
+                f"선택한 장치에서 소리를 감지했습니다.\n"
+                "이제 번역 시작을 눌러주세요.\n\n" + details,
+            )
+
     def configure_google_key(self):
         if self.running:
             messagebox.showinfo("Google API 키", "번역을 중지한 후 API 키를 설정하세요.")
@@ -421,6 +513,9 @@ class App:
             messagebox.showerror("오디오", "장치를 먼저 선택하세요.")
             return
         selected = self.devices[self.device_combo.current()]
+        if self._audio_scan_busy:
+            messagebox.showinfo("오디오 검사", "진행 중인 소리 찾기가 끝난 뒤 번역을 시작해 주세요.")
+            return
         engine = self.engine.get()
         if engine not in ("argos", "google"):
             messagebox.showerror("번역 엔진", "번역 엔진을 선택하세요.")
@@ -501,7 +596,9 @@ class App:
                 model=self._cached_model,
                 translate=translate_cached,
                 quality_mode=(engine == "argos"),
-                emit_status=lambda status: self.events.put(("status", status)),
+                emit_status=lambda status: self.events.put(
+                    ("error" if status.startswith("오디오 캡처 오류:") else "status", status)
+                ),
                 emit_audio_level=lambda rms, peak: self.events.put(("audio_level", (rms, peak))),
                 emit_original=lambda original: self.events.put(("original", original)),
                 emit_result=lambda original, translated: self.events.put(("result", (original, translated))),
@@ -558,6 +655,13 @@ class App:
                     self.status.set(data)
                     if data.startswith("오디오 연결 완료:"):
                         self.capture_started_at = time.monotonic()
+                elif kind == "scan_completed":
+                    self._audio_scan_busy = False
+                    self.show_audio_scan(data)
+                elif kind == "scan_failed":
+                    self._audio_scan_busy = False
+                    self.status.set("오디오 신호 검사 실패")
+                    messagebox.showerror("오디오 검사 실패", data)
                 elif kind == "model_loaded":
                     self.status.set(f"Whisper {data} 모델 로드 성공 · 오디오 수집 준비 중...")
                 elif kind == "model_report":
