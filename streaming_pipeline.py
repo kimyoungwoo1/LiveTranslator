@@ -297,6 +297,23 @@ def find_active_loopback(devices, progress=None, seconds=1.0, max_devices=12,
     return results
 
 
+
+def should_finalize_audio(sample_count, silence_count, rate, interval_seconds,
+                          quality_mode=False):
+    """Split natural speech near a pause instead of at a fixed clock boundary.
+
+    Quality mode waits for at least the configured amount of audio, then
+    prefers a >=0.28s quiet interval, but forces a cut after two more seconds
+    to bound latency and memory.  Other providers retain fixed intervals.
+    """
+    if not quality_mode:
+        return sample_count >= int(rate * interval_seconds)
+    minimum = max(3.0, float(interval_seconds))
+    maximum = min(10.0, max(5.0, minimum + 2.0))
+    return (sample_count >= int(rate * minimum)
+            and (silence_count >= int(rate * 0.28)
+                 or sample_count >= int(rate * maximum)))
+
 def run_stream(selected, interval_seconds, language, model, translate, emit_status,
                emit_original, emit_result, stop_event, quality_mode=False, emit_audio_level=None):
     pending = queue.Queue(maxsize=6 if quality_mode else 4)
@@ -304,6 +321,8 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
     skipped = [0]
     assembler = SentenceBuffer(interval_seconds) if quality_mode else None
     seen_skipped = 0
+    recent_transcript = ""
+    previous_lang = None
 
     def capture():
         pa = None
@@ -315,6 +334,7 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
             emit_status(f"오디오 연결 완료: {info['name']} · {channels}채널 · 음성 수집 중...")
             parts = []
             count = 0
+            quiet_samples = 0
             target_samples = rate * interval_seconds
             meter_power = 0.0
             meter_count = 0
@@ -337,11 +357,18 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
                     last_meter_at = now
                 parts.append(samples)
                 count += samples.size
-                if count < target_samples:
+                if float(np.sqrt(np.mean(samples * samples))) < 0.0015:
+                    quiet_samples += samples.size
+                else:
+                    quiet_samples = 0
+                if not should_finalize_audio(
+                    count, quiet_samples, rate, interval_seconds, quality_mode
+                ):
                     continue
                 block = np.concatenate(parts)
                 parts = []
                 count = 0
+                quiet_samples = 0
                 item = (time.monotonic(), block, rate)
                 try:
                     pending.put_nowait(item)
@@ -399,6 +426,8 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
             # A skipped audio chunk is a discontinuity: don't join text across it.
             if skipped[0] != seen_skipped:
                 seen_skipped = skipped[0]
+                recent_transcript = ""
+                previous_lang = None
                 if assembler:
                     item = assembler.flush()
                     if item:
@@ -421,12 +450,20 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
             before = time.monotonic()
             audio = resample_poly(samples, 16000, rate).astype(np.float32)
             emit_status(f"음성 인식 중 · 대기 {pending.qsize()}개")
+            # The last *recognized* phrase offers subject/vocabulary context
+            # across speech chunks; do not reuse it across skipped audio.
+            prompt = None
+            if quality_mode and recent_transcript and (
+                language != "auto" or previous_lang == language
+            ):
+                prompt = recent_transcript[-140:]
             segments, metadata = model.transcribe(
                 audio,
                 language=None if language == "auto" else language,
-                beam_size=3 if quality_mode else 1,
+                beam_size=5 if quality_mode else 1,
                 best_of=1,
                 temperature=0,
+                initial_prompt=prompt,
                 without_timestamps=True,
                 condition_on_previous_text=False,
                 vad_filter=False,
@@ -441,8 +478,11 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
                 )
                 continue
             asr_seconds = time.monotonic() - before
-            emit_original(original)
             source_lang = metadata.language if language == "auto" else language
+            if quality_mode:
+                recent_transcript = original[-180:]
+                previous_lang = source_lang
+            emit_original(original)
             if assembler:
                 ready = assembler.add(original, source_lang, time.monotonic())
                 if not ready:
