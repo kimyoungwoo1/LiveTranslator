@@ -438,7 +438,8 @@ class App:
         )
         saved = self.settings.get("audio_device")
         saved_index = find_saved_device_index(devices, saved)
-        chosen = match if match is not None else saved_index
+        # A persisted choice has priority over a temporary/default selection.
+        chosen = saved_index if saved_index is not None else match
         self.device_combo.current(chosen if chosen is not None else 0)
         self._needs_auto_source = saved_index is None and match is None
         if chosen is None:
