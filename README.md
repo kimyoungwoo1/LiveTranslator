@@ -154,3 +154,12 @@ The Argos high-quality option now captures a longer, more natural phrase before 
 **Tradeoff:** higher CPU work per phrase and potentially increased subtitle delay or skipped chunks on slower CPUs. The existing base model remains selected unless the user explicitly chooses small; the update itself does not download any additional model. The Google provider retains its previous fixed-time capture processing.
 
 Apply by using **업데이트 확인** > v0.6.12 > restart on any updater-enabled v0.6+ client. For the prior Volkswagen news example, compare the original English transcript first, then the Korean translation; the first stage determines whether the translation gets the right English sentence.
+
+## Dark dashboard UI and Exit button (v0.6.13)
+
+- A compact dark dashboard groups audio device and speech-recognition settings, translation providers, primary actions, and live audio status.
+- The **원문** and **한국어 번역** panels have scrollbars and a draggable divider; both transcript views remain simultaneously visible.
+- High-frequency controls are **번역 시작**, **중지**, **자막 지우기**. Model installation, diagnostics, records and updates remain accessible in the footer.
+- The new bottom-right **프로그램 종료** button uses the same exit handler as the title-bar X. If translation is running it requests confirmation, signals capture to stop, saves current settings and closes the app.
+- The selected playback source, offline/Google translation mode and the existing updater remain intact. No new third-party UI dependency or EXE build is needed for an updater-enabled installation.
+- This is a Tkinter styling/layout patch. The interface has not yet been visually validated on every Windows display-scale configuration.
