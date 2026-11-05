@@ -1,15 +1,15 @@
 {
-  "version": "0.6.7",
+  "version": "0.6.8",
   "min_bootstrap": "0.6.0",
-  "notes": "Add a model diagnosis button: report Whisper readiness without redownloading, and run a small local Argos translation test for the selected source language. Keep v0.6.6 audio input signal meter and audio fixes.",
+  "notes": "Audio troubleshooting: click 소리 찾기 to measure actual sound on playback WASAPI loopbacks independently of Whisper and Argos, identify a working output, and optionally change selected input. Preserve capture errors instead of hiding them.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.7/app_core.py",
-      "git_sha1": "b31b0220c2a02d23e594cc94639a822690a4527e"
+      "path": "updates/v0.6.8/app_core.py",
+      "git_sha1": "bd099c1c76ffb7fb736abf4fac82825e27ab43f4"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.7/streaming_pipeline.py",
-      "git_sha1": "75f2aae8be94bb2d7c5b74379793ffdabfece3cc"
+      "path": "updates/v0.6.8/streaming_pipeline.py",
+      "git_sha1": "e6786e82a59a99ffacfbff8722eceb125c74c5f1"
     }
   }
 }
