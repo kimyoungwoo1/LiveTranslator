@@ -1,14 +1,14 @@
 {
-  "version": "0.6.6",
+  "version": "0.6.7",
   "min_bootstrap": "0.6.0",
-  "notes": "Add visible WASAPI audio input level (dBFS), silent/no-data/recognition-delay diagnostics, safer surround downmix, and less aggressive silence filtering. Argos quality and Google mode are unchanged.",
+  "notes": "Add a model diagnosis button: report Whisper readiness without redownloading, and run a small local Argos translation test for the selected source language. Keep v0.6.6 audio input signal meter and audio fixes.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.6/app_core.py",
-      "git_sha1": "003900ecf8f13b8b2a03f5fe15825debc505d696"
+      "path": "updates/v0.6.7/app_core.py",
+      "git_sha1": "b31b0220c2a02d23e594cc94639a822690a4527e"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.6/streaming_pipeline.py",
+      "path": "updates/v0.6.7/streaming_pipeline.py",
       "git_sha1": "75f2aae8be94bb2d7c5b74379793ffdabfece3cc"
     }
   }
