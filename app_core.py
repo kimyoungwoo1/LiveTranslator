@@ -351,12 +351,7 @@ class App:
                         padding=(13, 8), background="#593037",
                         foreground="#ffdde0", borderwidth=0)
         style.map("LTDanger.TButton", background=[("active", "#74383f")])
-        style.configure("LT.Horizontal.TProgressbar", troughcolor=colors["field"],
-                        background=colors["green"], borderwidth=0, thickness=9)
-        style.configure("LT.TScrollbar", background=colors["field"],
-                        troughcolor=colors["card"], borderwidth=0)
-        style.configure("LT.TPanedwindow", background=colors["bg"])
-
+                        
         outer = ttk.Frame(self.root, style="LT.TFrame", padding=(20, 15, 20, 14))
         outer.pack(fill="both", expand=True)
 
@@ -446,12 +441,12 @@ class App:
         meter.pack(fill="x")
         ttk.Label(meter, text="오디오 입력", style="LTCardMuted.TLabel").pack(side="left", padx=(0, 12))
         ttk.Progressbar(meter, variable=self.audio_meter, maximum=100,
-                        length=150, style="LT.Horizontal.TProgressbar").pack(side="left", padx=(0, 12))
+                        length=150, ).pack(side="left", padx=(0, 12))
         self.audio_meter_label = ttk.Label(meter, textvariable=self.audio_state,
                                             style="LTCardMuted.TLabel")
         self.audio_meter_label.pack(side="left", fill="x", expand=True)
 
-        transcript = ttk.Panedwindow(outer, orient="vertical", style="LT.TPanedwindow")
+        transcript = ttk.Panedwindow(outer, orient="vertical", )
         transcript.pack(fill="both", expand=True, pady=(0, 10))
 
         def transcript_pane(label_text):
@@ -469,7 +464,7 @@ class App:
             )
             text_box.pack(side="left", fill="both", expand=True)
             scroll = ttk.Scrollbar(text_row, orient="vertical", command=text_box.yview,
-                                   style="LT.TScrollbar")
+                                   )
             scroll.pack(side="right", fill="y")
             text_box.configure(yscrollcommand=scroll.set)
             return pane, text_box
