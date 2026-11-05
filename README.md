@@ -15,10 +15,10 @@ Python 3.12 or compatible Python 3.13 required.
 2. `.venv\Scripts\python.exe -m pip install -r requirements.txt`
 3. `.venv\Scripts\python.exe main.py`
 
-The source app (`main.py`) will be committed separately as the next step. These commands work after the app source is present.
+Run commands from the repository folder. The application source is included as `main.py`.
 
 ## Distribution
-GitHub Actions configuration builds an experimental Windows executable artifact when main.py is committed. Distributing to others should wait for functional tests and a verified release. The EXE may still require a one-time model download.
+GitHub Actions builds an experimental Windows executable artifact on source updates. Distributing to others should wait for functional tests and a verified release. The EXE may still require a one-time model download.
 
 ## Privacy and safety
 No microphone recordings, transcripts, settings, access tokens, installed packages or downloaded AI models should be committed. Always verify that recording workplace audio is permitted under company policy, and obtain consent when needed.
