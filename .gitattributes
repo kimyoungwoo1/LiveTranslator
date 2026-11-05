@@ -1,0 +1,6 @@
+# Preserve published Python code and manifest bytes on Windows runners.
+*.py text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.bat text eol=crlf
