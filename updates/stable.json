@@ -1,15 +1,15 @@
 {
-  "version": "0.6.14",
+  "version": "0.6.15",
   "min_bootstrap": "0.6.0",
-  "notes": "Critical startup hotfix: fix _tkinter.TclError Layout Vertical.LT.TScrollbar not found introduced by v0.6.13 dashboard. Restore theme-native scrollbar/progress/panedwindow styles without removing the redesigned UI or Exit button. If v0.6.13 cannot launch, rename %LOCALAPPDATA%/LiveTranslator/code_patch to code_patch.broken, launch the bundled EXE and update from the app.",
+  "notes": "Improve transcript completeness in continuous speech: separate Whisper recognition from Argos/Google translation on an independent bounded text worker so slow translation no longer blocks the next speech recognition block. Report captured-audio skips versus delayed-translation skips separately. This does not restore audio already dropped or guarantee accuracy improvements if Whisper itself mishears the source.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.14/app_core.py",
-      "git_sha1": "ba5ed29cea47eff00bfb193522a58f9a980ac7dd"
+      "path": "updates/v0.6.15/app_core.py",
+      "git_sha1": "f71042758013fde50a6a8640cc2848534830c8aa"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.14/streaming_pipeline.py",
-      "git_sha1": "274f462519c3c208c95b4c67174281f6b853548b"
+      "path": "updates/v0.6.15/streaming_pipeline.py",
+      "git_sha1": "e1b3f9b22262a8e3c20d5efb5b78ac86aee7757d"
     }
   }
 }
