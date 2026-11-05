@@ -5,7 +5,7 @@
   "files": {
     "app_core.py": {
       "path": "updates/v0.6.1/app_core.py",
-      "git_sha1": "03aff5900e51639cbf49c80d9b78cac2bfe078ba"
+      "git_sha1": "6a8889519993b1d19ef0e05d02a0fbb4c2971217"
     },
     "streaming_pipeline.py": {
       "path": "updates/v0.6.1/streaming_pipeline.py",
