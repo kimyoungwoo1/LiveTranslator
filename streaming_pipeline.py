@@ -441,6 +441,9 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
             rms = float(np.sqrt(np.mean(samples * samples)))
             # Preserve quiet but audible Windows loopback feeds.
             if rms < 0.0005:
+                # Do not carry previous-topic vocabulary through an extended pause.
+                recent_transcript = ""
+                previous_lang = None
                 emit_status("오디오 수집 중 · 이 구간은 무음으로 판정됨")
                 if assembler:
                     item = assembler.flush()
