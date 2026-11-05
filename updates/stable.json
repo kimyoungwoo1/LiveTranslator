@@ -1,15 +1,15 @@
 {
-  "version": "0.6.8",
+  "version": "0.6.9",
   "min_bootstrap": "0.6.0",
-  "notes": "Audio troubleshooting: click 소리 찾기 to measure actual sound on playback WASAPI loopbacks independently of Whisper and Argos, identify a working output, and optionally change selected input. Preserve capture errors instead of hiding them.",
+  "notes": "Fix sound finder hanging at 2/5 on AMD/HDMI virtual audio devices. Read only available audio frames with a deadline; watchdog caps each device scan at 3.5 seconds and continues after a timeout. Shows timeout details without changing selected output automatically.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.8/app_core.py",
-      "git_sha1": "bd099c1c76ffb7fb736abf4fac82825e27ab43f4"
+      "path": "updates/v0.6.9/app_core.py",
+      "git_sha1": "681a13b6477cd437674af4cc320d034d7f91ba5a"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.8/streaming_pipeline.py",
-      "git_sha1": "e6786e82a59a99ffacfbff8722eceb125c74c5f1"
+      "path": "updates/v0.6.9/streaming_pipeline.py",
+      "git_sha1": "6453f8bdfe8a2ea8b8cbb4b88f2cfb4ed915b332"
     }
   }
 }
