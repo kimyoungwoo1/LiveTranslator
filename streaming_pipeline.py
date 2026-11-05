@@ -13,7 +13,7 @@ import pyaudiowpatch as pyaudio
 from scipy.signal import resample_poly
 
 
-def run_stream(selected, interval_seconds, language, model, translate, emit_status, emit_result, stop_event):
+def run_stream(selected, interval_seconds, language, model, translate, emit_status, emit_original, emit_result, stop_event):
     pending = queue.Queue(maxsize=4)
     capture_done = threading.Event()
     skipped = [0]
@@ -118,8 +118,12 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
                 break
             if not original:
                 continue
+            asr_seconds = time.monotonic() - before
+            emit_original(original)
             source_lang = metadata.language if language == "auto" else language
+            translation_started = time.monotonic()
             translated = original if source_lang == "ko" else translate(original, source_lang)
+            translation_seconds = time.monotonic() - translation_started
             if stop_event.is_set():
                 break
             emit_result(original, translated)
@@ -127,8 +131,9 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
             lag = time.monotonic() - captured_at
             overload = " · 처리 지연(모델을 tiny로 변경 권장)" if duration > interval_seconds else ""
             emit_status(
-                f"번역 중 · 실제 지연 {lag:.1f}초 · 처리 {duration:.1f}초 · "
-                f"대기 {pending.qsize()}개 · 건너뜀 {skipped[0]}개{overload}"
+                f"번역 중 · 지연 {lag:.1f}초 · 인식 {asr_seconds:.1f}초 · "
+                f"번역 {translation_seconds:.1f}초 · 대기 {pending.qsize()}개 · "
+                f"건너뜀 {skipped[0]}개{overload}"
             )
     finally:
         stop_event.set()
