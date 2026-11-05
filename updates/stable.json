@@ -1,14 +1,14 @@
 {
-  "version": "0.6.2",
+  "version": "0.6.3",
   "min_bootstrap": "0.6.0",
-  "notes": "Add '자막 지우기' to clear original, translated text, and overlay subtitles without stopping translation or removing saved TXT files.",
+  "notes": "Selectable Argos offline or official Google Cloud Translation Basic (v2) online; Google API key is stored with Windows DPAPI per-user encryption; recognized text is sent only when Google is selected.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.2/app_core.py",
-      "git_sha1": "3a02be2893ad2061de3e0febc9eff9cb0b490b88"
+      "path": "updates/v0.6.3/app_core.py",
+      "git_sha1": "3b9fefa661e6f74229c304a76795b13a337cd249"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.2/streaming_pipeline.py",
+      "path": "updates/v0.6.3/streaming_pipeline.py",
       "git_sha1": "ddc6100c1331879995a88094c9a9edeb7949d1bb"
     }
   }
