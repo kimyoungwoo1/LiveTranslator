@@ -264,7 +264,7 @@ def probe_with_timeout(selected, seconds=1.0, timeout=3.5):
 
 
 def find_active_loopback(devices, progress=None, seconds=1.0, max_devices=12,
-                         max_seconds_per_device=3.5):
+                         max_seconds_per_device=3.5, stop_on_signal=False):
     """Survey playback loopbacks without hanging on any single device."""
     candidates = [dev for dev in devices if dev[2]]
     seen = set()
@@ -285,6 +285,11 @@ def find_active_loopback(devices, progress=None, seconds=1.0, max_devices=12,
                 device, seconds=seconds, timeout=max_seconds_per_device
             )
             results.append({"device": device, **result})
+            # First-run automatic detection only needs one audible source.
+            # A manual '소리 찾기' still examines every source for comparison.
+            if (stop_on_signal and not result.get("warning")
+                    and float(result.get("rms", 0)) >= 0.001):
+                break
         except Exception as exc:
             results.append({
                 "device": device, "name": device[0], "error": str(exc)
