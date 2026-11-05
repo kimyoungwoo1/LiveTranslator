@@ -21,7 +21,7 @@ import numpy as np
 from scipy.signal import resample_poly
 import pyaudiowpatch as pyaudio
 
-APP_DIR = Path.home() / "AppData" / "Local" / "LiveTranslator"
+APP_DIR = updater.APP_DIR
 APP_DIR.mkdir(parents=True, exist_ok=True)
 SETTINGS = APP_DIR / "settings.json"
 TRANSCRIPTS = APP_DIR / "transcripts"
