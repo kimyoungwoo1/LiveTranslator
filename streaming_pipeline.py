@@ -157,6 +157,97 @@ def open_capture_stream(pa, info):
 
 
 
+
+def audio_to_mono(raw, channels, sample_format):
+    """Decode captured PCM and downmix the channels that actually carry sound."""
+    if sample_format == pyaudio.paInt16:
+        samples = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
+    else:
+        samples = np.frombuffer(raw, dtype=np.float32)
+    if samples.size == 0:
+        return samples
+    if channels <= 1:
+        return samples
+    multi = samples.reshape(-1, channels)
+    power = np.mean(multi * multi, axis=0)
+    loudest = float(np.max(power))
+    if loudest <= 0:
+        return multi.mean(axis=1)
+    active = power >= loudest * 0.05
+    mono = multi[:, active].mean(axis=1)
+    # Do not let phase-inverted 5.1/7.1 channels cancel audible speech.
+    if float(np.mean(mono * mono)) < loudest * 0.04:
+        return multi[:, int(np.argmax(power))]
+    return mono
+
+
+def probe_audio_source(selected, seconds=1.1):
+    """Measure loopback/mic RMS independently of Whisper and Argos.
+
+    No audio is stored or uploaded.  Caller should only test a microphone
+    selected by the user, not automatically survey microphones.
+    """
+    pa = None
+    stream = None
+    try:
+        pa = pyaudio.PyAudio()
+        device = resolve_capture_device(pa, selected)
+        stream, rate, channels, frames, fmt = open_capture_stream(pa, device)
+        remaining = max(1, int(seconds * rate))
+        sum_sq = 0.0
+        sample_count = 0
+        peak = 0.0
+        while remaining > 0:
+            nframes = min(frames, remaining)
+            raw = stream.read(nframes, exception_on_overflow=False)
+            mono = audio_to_mono(raw, channels, fmt)
+            if not mono.size:
+                raise RuntimeError("오디오 장치가 빈 버퍼를 반환했습니다.")
+            sum_sq += float(np.sum(mono * mono))
+            sample_count += int(mono.size)
+            peak = max(peak, float(np.max(np.abs(mono))))
+            remaining -= nframes
+        rms = (sum_sq / sample_count) ** 0.5 if sample_count else 0.0
+        return {"name": device["name"], "rms": rms, "peak": peak, "channels": channels}
+    finally:
+        if stream is not None:
+            try:
+                stream.stop_stream()
+                stream.close()
+            except Exception:
+                pass
+        if pa is not None:
+            pa.terminate()
+
+
+def find_active_loopback(devices, progress=None, seconds=1.0, max_devices=12):
+    """Survey only playback loopbacks while external audio is playing.
+
+    Returns one result per candidate. A failure for one driver does not block
+    the remaining devices; automatic selection is left to the user.
+    """
+    candidates = [dev for dev in devices if dev[2]]
+    seen = set()
+    unique = []
+    for dev in candidates:
+        name = dev[3] if len(dev) > 3 else dev[0]
+        if name in seen:
+            continue
+        seen.add(name)
+        unique.append(dev)
+    unique = unique[:max_devices]
+    results = []
+    for index, device in enumerate(unique, 1):
+        if progress is not None:
+            progress(index, len(unique), device[0])
+        try:
+            result = probe_audio_source(device, seconds=seconds)
+            results.append({"device": device, **result})
+        except Exception as exc:
+            results.append({"device": device, "name": device[0], "error": str(exc)})
+    return results
+
+
 def run_stream(selected, interval_seconds, language, model, translate, emit_status,
                emit_original, emit_result, stop_event, quality_mode=False, emit_audio_level=None):
     pending = queue.Queue(maxsize=6 if quality_mode else 4)
@@ -182,27 +273,7 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
             last_meter_at = time.monotonic()
             while not stop_event.is_set():
                 buffer = stream.read(frames, exception_on_overflow=False)
-                if sample_format == pyaudio.paInt16:
-                    samples = np.frombuffer(buffer, dtype=np.int16).astype(np.float32) / 32768.0
-                else:
-                    samples = np.frombuffer(buffer, dtype=np.float32)
-                if channels > 1:
-                    multichannel = samples.reshape(-1, channels)
-                    # 5.1/7.1 loopback often carries silence on unused channels.
-                    # Average only active channels to avoid attenuating speech.
-                    channel_energy = np.mean(multichannel * multichannel, axis=0)
-                    loudest = float(np.max(channel_energy))
-                    if loudest > 0:
-                        active = channel_energy >= loudest * 0.05
-                        mono = multichannel[:, active].mean(axis=1)
-                        # Virtual surround can have phase-inverted channels.
-                        # Avoid canceling speech when the downmix is nearly silent.
-                        strongest = multichannel[:, int(np.argmax(channel_energy))]
-                        if float(np.mean(mono * mono)) < loudest * 0.04:
-                            mono = strongest
-                        samples = mono
-                    else:
-                        samples = multichannel.mean(axis=1)
+                samples = audio_to_mono(buffer, channels, sample_format)
                 # Level meter reflects the same mono audio sent to Whisper.
                 meter_power += float(np.sum(samples * samples))
                 meter_count += samples.size
