@@ -57,3 +57,17 @@ This proof of concept publishes v0.6.1 as a small code-only patch so the update 
 - Because the public repository provides executable Python updates, publishing access must be protected (e.g. GitHub MFA / protected branches). A digest in the same repository prevents accidental corruption, not compromise of the repository.
 - For the current experimental build, open GitHub Actions > **Windows EXE lite experiment** > **Run workflow** exactly once. Only use the resulting artifact if its import checks pass; test full translation on Windows.
 
+
+## Select translation provider (v0.6.3 code patch)
+
+- **Argos (오프라인)**: default, works without an API key and without transmitting transcripts to an external service.
+- **Google Cloud (온라인)**: uses the official **Cloud Translation Basic v2 NMT API**. Click **Google API 키 설정** in the app to save your own key using Windows per-user DPAPI encryption, then select **Google Cloud (온라인)** as the translation engine before starting. Leave the input blank in the key dialog to delete a stored key.
+- Google requires an enabled **Cloud Translation API**, linked billing account, and an appropriately **API-restricted key**. Charges may apply; configure quotas and budgets in your own Google Cloud project.
+- Only **recognized text** is sent to Google when the Google mode is actively selected; microphone/audio recordings are processed by the local Whisper model and not uploaded by this feature.
+- The key is **not** written to the public GitHub repository, the settings.json file, or the transcript TXT file. It lives under the local application-data directory encrypted for the Windows user.
+- Each person receiving the EXE must configure their own key to enable Google mode. No shared or hard-coded developer key is provided.
+- The API timeout is 8 seconds per request, and network/API errors are reported in the status bar. Argos does not automatically switch to Google or vice versa.
+- **Compatible with the v0.6.0+ patch-capable EXE**, assuming its code-updater bootstrap is installed and working. In the app choose **업데이트 확인** to get the latest patch. No new Python dependencies are needed. Earlier standalone EXEs cannot install this patch.
+- This is a code-release, **not yet validated end-to-end with a real billed Google Cloud account on Windows**. Avoid sending confidential workplace conversations unless organizational policy explicitly permits this.
+
+Google Cloud's official API documentation: https://docs.cloud.google.com/translate/docs/reference/rest/v2/translate
