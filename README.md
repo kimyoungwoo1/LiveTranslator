@@ -95,3 +95,15 @@ If starting translation shows `오디오 캡처 오류: [Errno -9996] Invalid de
 - Loopback capture tries its advertised native channel count (including 6/8 channels), 16-bit PCM first and float32 next. Stereo/mono fallbacks follow if the device rejects native channels. Multichannel audio is downmixed from active channels to avoid excessive attenuation.
 - In-app update: choose **업데이트 확인** > **v0.6.5** > restart. No EXE download is required for updater-enabled clients. If an audio driver exposes a loopback but refuses capture altogether, changing the Windows active playback device or driver may still be necessary.
 - This is a defensive compatibility fix validated at code level only; it has not been tested on the user's specific 7.1 virtual device.
+
+## Diagnose empty subtitles (v0.6.6)
+
+If the GUI says an audio device has connected but both transcription panes remain empty, look at the **오디오 입력** meter below the status line while the video is playing:
+
+- **오디오 입력 정상** and a moving meter: audio packets are reaching Whisper. If no original text appears after about 15 seconds, check the speech language (English `en` or Japanese `ja`), the CPU recognition delay, and whether the video is actually speaking.
+- **거의 무음**, a nearly stationary meter, or levels near -100 dBFS: the selected WASAPI loopback is not carrying the video's audible signal. Check Windows Volume Mixer for the browser's playback device and choose that device's loopback; the default `7.1 Surround Sound` virtual device may differ from the physical speakers/headphones.
+- **오디오 데이터 수신 없음**: the selected driver opened the stream, but no packets are arriving. Refresh devices, reconnect headphones, switch Windows output or its driver.
+- The 5.1/7.1 audio downmix now falls back to the loudest channel when summing active channels cancels sound. The near-silence threshold was lowered to retain quiet loopback captures.
+- The level meter does not record or upload audio. This patch does not guarantee that a particular virtual output driver can provide a readable audio signal.
+
+Apply from **업데이트 확인** > **v0.6.6** > restart on an updater-enabled LiveTranslator EXE.
