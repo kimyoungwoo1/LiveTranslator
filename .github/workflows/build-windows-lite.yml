@@ -2,14 +2,6 @@ name: Windows EXE lite experiment
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "main_lite.py"
-      - "main.py"
-      - "streaming_pipeline.py"
-      - "hooks/argos_lite.py"
-      - ".github/workflows/build-windows-lite.yml"
 
 jobs:
   build-lite:
