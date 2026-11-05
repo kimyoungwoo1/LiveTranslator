@@ -2,14 +2,6 @@ name: Windows EXE test build
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "main.py"
-      - "streaming_pipeline.py"
-      - "requirements.txt"
-      - "build_exe.bat"
-      - ".github/workflows/build-windows.yml"
 
 jobs:
   build:
