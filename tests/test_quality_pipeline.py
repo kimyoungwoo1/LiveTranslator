@@ -66,6 +66,34 @@ class QualityTests(unittest.TestCase):
         self.assertEqual(buf.flush(), ("partial phrase", "en"))
         self.assertIsNone(buf.flush())
 
+    def test_quality_waits_for_pauses_after_minimum_context(self):
+        ready = self.pipeline.should_finalize_audio
+        rate = 16000
+        self.assertFalse(ready(int(2.9 * rate), int(0.5 * rate), rate, 3, True))
+        self.assertFalse(ready(int(3.2 * rate), int(0.15 * rate), rate, 3, True))
+        self.assertTrue(ready(int(3.3 * rate), int(0.32 * rate), rate, 3, True))
+
+    def test_quality_forces_cut_at_bounded_maximum(self):
+        ready = self.pipeline.should_finalize_audio
+        rate = 48000
+        self.assertFalse(ready(int(4.8 * rate), 0, rate, 3, True))
+        self.assertTrue(ready(int(5.1 * rate), 0, rate, 3, True))
+        self.assertTrue(ready(int(10 * rate), 0, rate, 8, True))
+
+    def test_google_keeps_original_fixed_interval(self):
+        ready = self.pipeline.should_finalize_audio
+        rate = 48000
+        self.assertFalse(ready(int(2.9 * rate), 0, rate, 3, False))
+        self.assertTrue(ready(int(3 * rate), 0, rate, 3, False))
+
+    def test_quality_asr_uses_beam_five_and_bounded_context(self):
+        path = Path(__file__).resolve().parent.parent / "streaming_pipeline.py"
+        text = path.read_text(encoding="utf-8")
+        self.assertIn("beam_size=5 if quality_mode else 1", text)
+        self.assertIn("initial_prompt=prompt", text)
+        self.assertIn("recent_transcript[-140:]", text)
+        self.assertIn('recent_transcript = ""', text)
+
     def test_argos_one_quality_profile_and_google_still_selectable(self):
         app = (Path(__file__).resolve().parent.parent / "app_core.py").read_text(encoding="utf-8")
         self.assertIn('os.environ["ARGOS_BEAM_SIZE"] = "4"', app)
