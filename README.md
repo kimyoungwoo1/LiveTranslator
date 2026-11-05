@@ -107,3 +107,15 @@ If the GUI says an audio device has connected but both transcription panes remai
 - The level meter does not record or upload audio. This patch does not guarantee that a particular virtual output driver can provide a readable audio signal.
 
 Apply from **업데이트 확인** > **v0.6.6** > restart on an updater-enabled LiveTranslator EXE.
+
+## If audio connects but transcription never starts (v0.6.8)
+
+The **소리 찾기** button by the device picker directly probes the audio streams. It does **not** use or download a Whisper model, Argos language pack, or Google API.
+
+1. Stop translation, keep your YouTube/video playing audibly, and click **소리 찾기**.
+2. It measures the currently available **playback loopback** sources (not random microphones). Their measured levels are shown in dBFS. A connected 7.1 virtual output can still be silent if Chrome plays through another Windows output.
+3. If another output has stronger signal, the app asks permission before switching. Then click **번역 시작**.
+4. If all output sources are near silent, use **Windows Settings > System > Sound > Volume mixer** to verify which output Chrome actually uses, and confirm that audio is not muted. Reconnect Bluetooth headsets if necessary.
+5. If a source shows clear audio but the original transcript is still blank, check the displayed Whisper status and try the **모델 진단** button after stopping; the problem is then likely speech recognition latency or content rather than the audio source.
+
+No audio from the probe is saved to disk or transmitted online. The loopback probe does not guarantee the underlying device driver is correct. All functionality is delivered via the small in-app update; no EXE rebuild is required for v0.6+.
