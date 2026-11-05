@@ -441,12 +441,12 @@ class App:
         meter.pack(fill="x")
         ttk.Label(meter, text="오디오 입력", style="LTCardMuted.TLabel").pack(side="left", padx=(0, 12))
         ttk.Progressbar(meter, variable=self.audio_meter, maximum=100,
-                        length=150, ).pack(side="left", padx=(0, 12))
+                        length=150).pack(side="left", padx=(0, 12))
         self.audio_meter_label = ttk.Label(meter, textvariable=self.audio_state,
                                             style="LTCardMuted.TLabel")
         self.audio_meter_label.pack(side="left", fill="x", expand=True)
 
-        transcript = ttk.Panedwindow(outer, orient="vertical", )
+        transcript = ttk.Panedwindow(outer, orient="vertical")
         transcript.pack(fill="both", expand=True, pady=(0, 10))
 
         def transcript_pane(label_text):
@@ -463,8 +463,7 @@ class App:
                 relief="flat", bd=0, highlightthickness=0,
             )
             text_box.pack(side="left", fill="both", expand=True)
-            scroll = ttk.Scrollbar(text_row, orient="vertical", command=text_box.yview,
-                                   )
+            scroll = ttk.Scrollbar(text_row, orient="vertical", command=text_box.yview)
             scroll.pack(side="right", fill="y")
             text_box.configure(yscrollcommand=scroll.set)
             return pane, text_box
