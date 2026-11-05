@@ -1,15 +1,15 @@
 {
-  "version": "0.6.11",
+  "version": "0.6.12",
   "min_bootstrap": "0.6.0",
-  "notes": "Remember the last manually chosen or sound-finder-confirmed output by device name across app restarts. Restore the same Razer/headset even if PortAudio indexes change. When no saved output is available, the first Translate Start automatically scans active playback loopbacks and saves the first audible device. Manual source choice remains supported; no scanning on every start.",
+  "notes": "Improve offline high-quality recognition without new model downloads: adapt Whisper chunk boundaries to brief speech pauses (minimum 3 seconds, bounded to configured interval plus up to 2 seconds), use beam size 5 and recent-transcript vocabulary context; reset context after silence or dropped audio. Google translation keeps original fixed interval. More CPU processing and extra subtitle delay are possible.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.11/app_core.py",
+      "path": "updates/v0.6.12/app_core.py",
       "git_sha1": "546e5947ff825f80cf76dac308a1ed9f51f8e2e6"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.11/streaming_pipeline.py",
-      "git_sha1": "c07e366cbd3206240bd18533f06ab3ba4ea9d393"
+      "path": "updates/v0.6.12/streaming_pipeline.py",
+      "git_sha1": "274f462519c3c208c95b4c67174281f6b853548b"
     }
   }
 }
