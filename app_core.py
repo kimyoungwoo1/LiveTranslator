@@ -1,5 +1,6 @@
 """LiveTranslator: Windows local audio-to-Korean subtitles (prototype)."""
 import datetime
+import math
 import os
 import subprocess
 import sys
@@ -150,6 +151,11 @@ class App:
         self.engine = tk.StringVar(value=self.settings.get("engine", "argos"))
         self.overlay_enabled = tk.BooleanVar(value=False)
         self.status = tk.StringVar(value="장치를 선택하고 번역을 시작하세요.")
+        self.audio_meter = tk.DoubleVar(value=0.0)
+        self.audio_state = tk.StringVar(value="입력 신호: 번역 시작 후 확인")
+        self.last_audio_meter_at = None
+        self.capture_started_at = None
+        self.last_original_at = None
         self.build_ui()
         self.refresh()
         self.root.after(100, self.consume)
@@ -210,7 +216,13 @@ class App:
         self.stop_btn.pack(side="left", padx=7)
         ttk.Button(row, text="영어→한국어 모델 설치", command=lambda: self.install_pack("en")).pack(side="left", padx=3)
         ttk.Button(row, text="일본어→한국어 모델 설치", command=lambda: self.install_pack("ja")).pack(side="left", padx=3)
-        ttk.Label(frame, textvariable=self.status, foreground="#215ba5").pack(anchor="w", pady=(10, 12))
+        ttk.Label(frame, textvariable=self.status, foreground="#215ba5").pack(anchor="w", pady=(10, 4))
+        meter_row = ttk.Frame(frame)
+        meter_row.pack(fill="x", pady=(0, 9))
+        ttk.Label(meter_row, text="오디오 입력", width=13).pack(side="left")
+        ttk.Progressbar(meter_row, variable=self.audio_meter, maximum=100, length=145).pack(side="left", padx=(0, 10))
+        self.audio_meter_label = ttk.Label(meter_row, textvariable=self.audio_state)
+        self.audio_meter_label.pack(side="left", fill="x", expand=True)
         ttk.Label(frame, text="원문", font=("Malgun Gothic", 11, "bold")).pack(anchor="w")
         self.original = tk.Text(frame, height=8, wrap="word")
         self.original.pack(fill="both", expand=True, pady=(4, 10))
@@ -374,6 +386,11 @@ class App:
         self.persist()
         self.stop_signal = threading.Event()
         self.running = True
+        self.audio_meter.set(0)
+        self.audio_state.set("입력 신호: 연결 대기 중...")
+        self.last_audio_meter_at = None
+        self.capture_started_at = None
+        self.last_original_at = None
         self.start_btn.config(state="disabled")
         self.stop_btn.config(state="normal")
         self.status.set("음성 인식 모델을 초기화하는 중...")
@@ -427,6 +444,7 @@ class App:
                 translate=translate_cached,
                 quality_mode=(engine == "argos"),
                 emit_status=lambda status: self.events.put(("status", status)),
+                emit_audio_level=lambda rms, peak: self.events.put(("audio_level", (rms, peak))),
                 emit_original=lambda original: self.events.put(("original", original)),
                 emit_result=lambda original, translated: self.events.put(("result", (original, translated))),
                 stop_event=self.stop_signal,
@@ -480,6 +498,25 @@ class App:
                 kind, data = self.events.get_nowait()
                 if kind == "status":
                     self.status.set(data)
+                    if data.startswith("오디오 연결 완료:"):
+                        self.capture_started_at = time.monotonic()
+                elif kind == "audio_level":
+                    rms, peak = data
+                    self.last_audio_meter_at = time.monotonic()
+                    dbfs = 20 * math.log10(max(float(rms), 1e-7))
+                    level = max(0, min(100, int((dbfs + 65) / 55 * 100)))
+                    self.audio_meter.set(level)
+                    if rms < 0.0005:
+                        state = "거의 무음 · 소리 출력 장치가 맞는지 확인"
+                    elif rms < 0.002:
+                        state = "매우 작은 신호 · Windows 출력 음량 확인"
+                    else:
+                        state = "오디오 입력 정상"
+                    if (rms >= 0.0005 and self.last_original_at is None
+                            and self.capture_started_at is not None
+                            and time.monotonic() - self.capture_started_at > 15):
+                        state += " · 음성 인식이 오래 걸림"
+                    self.audio_state.set(f"{state} ({dbfs:.0f} dBFS)")
                 elif kind == "update_found":
                     if data is None:
                         self.status.set(f"최신 버전입니다. (v{updater.current_version()})")
@@ -497,6 +534,7 @@ class App:
                 elif kind == "error":
                     self.status.set(f"오류: {data}")
                 elif kind == "original":
+                    self.last_original_at = time.monotonic()
                     self.original.insert("end", data + "\n")
                     self.original.see("end")
                 elif kind == "result":
@@ -510,12 +548,19 @@ class App:
                             f.write(f"[{datetime.datetime.now():%H:%M:%S}] {original}\n{translated}\n\n")
                 elif kind == "ended":
                     self.running = False
+                    self.capture_started_at = None
                     self.start_btn.config(state="normal")
                     self.stop_btn.config(state="disabled")
                     if self.stop_signal.is_set() and not self.status.get().startswith(("오류:", "오디오 캡처 오류:")):
                         self.status.set("중지 완료")
         except queue.Empty:
             pass
+        if (self.running and self.capture_started_at is not None
+                and (self.last_audio_meter_at is None
+                     or time.monotonic() - self.last_audio_meter_at > 5)
+                and time.monotonic() - self.capture_started_at > 5):
+            self.audio_state.set("오디오 데이터 수신 없음 · 다른 출력 장치 선택 또는 드라이버 확인")
+            self.audio_meter.set(0)
         self.root.after(100, self.consume)
 
     def close(self):
