@@ -1,5 +1,7 @@
 """LiveTranslator: Windows local audio-to-Korean subtitles (prototype)."""
 import datetime
+import os
+os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
 import json
 import queue
 import threading
@@ -178,7 +180,11 @@ class App:
             from faster_whisper import WhisperModel
             import argostranslate.translate
             self.events.put(("status", "음성 인식 모델을 로드 중입니다. 첫 실행에는 다운로드가 필요합니다."))
-            model = WhisperModel(self.model.get(), device="cpu", compute_type="int8", cpu_threads=6)
+            local_model = APP_DIR / "models" / self.model.get()
+            model_path = str(local_model) if all((local_model / name).is_file() for name in ("model.bin", "config.json", "tokenizer.json")) else self.model.get()
+            if model_path == str(local_model):
+                self.events.put(("status", "로컬 음성 인식 모델을 불러오는 중..."))
+            model = WhisperModel(model_path, device="cpu", compute_type="int8", cpu_threads=6)
             if self.stop_signal.is_set():
                 return
             pa = pyaudio.PyAudio()
