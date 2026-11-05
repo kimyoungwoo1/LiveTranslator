@@ -177,3 +177,13 @@ If installing the v0.6.13 dark UI patch produces `_tkinter.TclError: Layout Vert
 5. Click **업데이트 확인** and install **v0.6.14**, then restart. The new patch uses the built-in ttk scrollbar, progressbar and panedwindow layouts.
 
 Regression tests now include a Windows Tk window creation smoke test (when the runner has a desktop) and a static check forbidding invalid oriented scrollbar style names. The update does not change Whisper, Argos, Google, saved audio devices or user data.
+
+## Test transcript completeness and translation independently (v0.6.15)
+
+On an English business phone conversation, compare the LiveTranslator original transcription with the provider's official transcript *before* evaluating Korean translation. A sample evaluation had 264 reference words, with 38 deletions, 7 substitutions and 1 insertion after lightweight spelling normalization (about 17.4% WER). Entire clauses including the extension to **60 days** were missing; lost speech cannot be reconstructed by Argos.
+
+Before v0.6.15, the same worker performed Whisper and potentially slow Argos translation synchronously. While Argos was translating, newly captured audio accumulated in a bounded queue, eventually skipping old blocks. v0.6.15 runs translation on a separate worker; the UI reports **음성 누락** (audio input chunks skipped) and **번역 누락** (overflowed queued translations) separately.
+
+**Validation:** run the same recording with English/base/3-second/Argos, and observe skip counters while the dialog plays. If audio skips remain zero but the source has omissions, improving the speech model or using longer bounded context may be the appropriate next step. If audio skips rise, the CPU cannot keep pace; model and recognition beam-size tradeoffs still matter. The revised pipeline might increase CPU contention; it does not guarantee a lower WER or professional subtitle quality.
+
+Use **업데이트 확인 > v0.6.15** on an updater-enabled client. No new EXE, models, or Python packages are needed.
