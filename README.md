@@ -119,3 +119,14 @@ The **소리 찾기** button by the device picker directly probes the audio stre
 5. If a source shows clear audio but the original transcript is still blank, check the displayed Whisper status and try the **모델 진단** button after stopping; the problem is then likely speech recognition latency or content rather than the audio source.
 
 No audio from the probe is saved to disk or transmitted online. The loopback probe does not guarantee the underlying device driver is correct. All functionality is delivered via the small in-app update; no EXE rebuild is required for v0.6+.
+
+## Audio scan stuck at 2/5 (v0.6.9)
+
+Some inactive AMD/HDMI or virtual outputs can open successfully but block indefinitely when the scan tries to read silence. The v0.6.9 code patch changes the sound-finder diagnostic only:
+
+- Poll PortAudio input buffer availability before reading; do not call a blocking `read()` on an empty buffer.
+- Give each device a **3.5-second watchdog limit** and continue to the next entry even if a driver never returns from a native call. A timeout appears beside that device in the scan results.
+- Do not change the Windows playback device or the selected loopback automatically. Choose a detected source only when asked.
+- If an old v0.6.8 scan is stuck, close and reopen LiveTranslator, use **업데이트 확인** to get v0.6.9, restart, and then scan while the video is playing.
+
+Note: An unresponsive Windows native driver can leave a daemon diagnostic thread until the application exits. Repeated scans of broken drivers are discouraged; the fix prevents the UI's sequential scan from waiting indefinitely but cannot repair the driver itself.
