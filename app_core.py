@@ -202,6 +202,34 @@ def guard_argos_quantity(source, translated):
 
 
 
+def find_saved_device_index(devices, choice):
+    """Look up a playback loopback or mic by its stable name, never by index."""
+    if not isinstance(choice, dict) or not isinstance(choice.get("name"), str):
+        return None
+    if not isinstance(choice.get("loopback"), bool):
+        return None
+    return next(
+        (idx for idx, dev in enumerate(devices)
+         if len(dev) > 3
+         and dev[3] == choice["name"]
+         and dev[2] is choice["loopback"]),
+        None,
+    )
+
+
+def find_strongest_audio(results, min_rms=0.001):
+    """Select the strongest valid signal, not a silent or broken virtual device."""
+    valid = [
+        item for item in results
+        if "error" not in item
+        and not item.get("warning")
+        and isinstance(item.get("rms"), (int, float))
+        and math.isfinite(item["rms"])
+        and item["rms"] >= min_rms
+    ]
+    return max(valid, key=lambda item: item["rms"], default=None)
+
+
 class App:
     def __init__(self, root):
         self.root = root
@@ -214,6 +242,8 @@ class App:
         self._cached_model_key = None
         self._model_check_busy = False
         self._audio_scan_busy = False
+        self._auto_start_pending = False
+        self._needs_auto_source = False
         self.running = False
         self.devices = []
         self.settings = self.load_settings()
@@ -245,8 +275,21 @@ class App:
         SETTINGS.write_text(json.dumps({
             "language": self.language.get(), "model": self.model.get(),
             "seconds": self.seconds.get(), "save": self.save_enabled.get(),
-            "engine": self.engine.get()
+            "engine": self.engine.get(),
+            "audio_device": self.settings.get("audio_device"),
         }, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def remember_selected_device(self, event=None):
+        """Save a user-selected or confirmed audio source immediately."""
+        if not self.devices or self.device_combo.current() < 0:
+            return
+        selected = self.devices[self.device_combo.current()]
+        self.settings["audio_device"] = {
+            "name": selected[3],
+            "loopback": bool(selected[2]),
+        }
+        self._needs_auto_source = False
+        self.persist()
 
     def build_ui(self):
         frame = ttk.Frame(self.root, padding=18)
@@ -258,6 +301,7 @@ class App:
         ttk.Label(row, text="오디오 장치", width=13).pack(side="left")
         self.device_combo = ttk.Combobox(row, textvariable=self.device, state="readonly")
         self.device_combo.pack(side="left", fill="x", expand=True, padx=5)
+        self.device_combo.bind("<<ComboboxSelected>>", self.remember_selected_device)
         ttk.Button(row, text="새로고침", command=self.refresh).pack(side="left")
         ttk.Button(row, text="소리 찾기", command=self.scan_audio).pack(side="left", padx=(5, 0))
         row = ttk.Frame(frame)
@@ -386,15 +430,27 @@ class App:
         if not devices:
             self.status.set("오디오 장치를 찾을 수 없습니다. Windows 출력/입력 장치를 확인하세요.")
             return
+        # Keep a current in-session selection. Otherwise restore the last
+        # working device, which survives EXE restarts and PortAudio reindexing.
         match = next(
             (i for i, device in enumerate(devices) if device[3] == old_name and device[2] == old_loopback),
             None,
         )
-        self.device_combo.current(match if match is not None else 0)
-        self.status.set("오디오 장치 목록을 갱신했습니다. 실제 소리가 나오는 출력 장치를 선택하세요.")
+        saved = self.settings.get("audio_device")
+        saved_index = find_saved_device_index(devices, saved)
+        chosen = match if match is not None else saved_index
+        self.device_combo.current(chosen if chosen is not None else 0)
+        self._needs_auto_source = saved_index is None and match is None
+        if chosen is None:
+            self.status.set(
+                "저장된 오디오 출력이 없거나 연결이 끊어졌습니다. "
+                "번역 시작 시 실제 소리가 나는 출력 장치를 자동으로 찾습니다."
+            )
+        else:
+            self.status.set(f"오디오 장치 복원 완료: {devices[chosen][3]}")
 
-    def scan_audio(self):
-        """Search actual playback loopbacks for sound, independently of AI models."""
+    def scan_audio(self, auto_start=False):
+        """Search actual playback loopbacks; optionally start after detection."""
         if self.running:
             messagebox.showinfo("오디오 검사", "번역을 중지한 뒤 소리 찾기를 실행해 주세요.")
             return
@@ -408,7 +464,11 @@ class App:
             return
         selected = self.devices[selected_idx]
         self._audio_scan_busy = True
-        self.status.set("오디오 신호 검사 중 · 유튜브 영상을 소리와 함께 재생해 주세요...")
+        self._auto_start_pending = bool(auto_start)
+        if auto_start:
+            self.status.set("오디오 자동 감지 중 · 영상 소리가 나는 출력 장치를 찾는 중...")
+        else:
+            self.status.set("오디오 신호 검사 중 · 유튜브 영상을 소리와 함께 재생해 주세요...")
         devices = list(self.devices)
 
         def worker():
@@ -431,6 +491,32 @@ class App:
 
         threading.Thread(target=worker, name="AudioSignalProbe", daemon=True).start()
 
+    def use_detected_audio_and_start(self, results):
+        """Pick a proven playback source, persist it, then start translation."""
+        best = find_strongest_audio(results)
+        if best is None:
+            self.status.set("오디오 자동 감지 실패 · 재생 중인 영상 소리가 감지되지 않았습니다.")
+            messagebox.showwarning(
+                "오디오 자동 감지",
+                "소리가 감지되지 않았습니다. 영상을 재생하고 Windows 출력 장치를 확인해 주세요.\n"
+                "필요하면 '소리 찾기'에서 검사 결과를 볼 수 있습니다.",
+            )
+            return
+        index = next(
+            (i for i, device in enumerate(self.devices) if device == best["device"]),
+            None,
+        )
+        if index is None:
+            self.status.set("출력 장치 목록이 바뀌었습니다. 새로고침 후 다시 시도하세요.")
+            return
+        self.device_combo.current(index)
+        self.remember_selected_device()
+        self.status.set(
+            f"오디오 자동 감지 완료: {best['device'][3]} "
+            "· 이 장치를 다음 실행에도 사용합니다."
+        )
+        self.root.after(50, self.start)
+
     def show_audio_scan(self, results):
         """Never automatically switch audio sources without confirmation."""
         if not results:
@@ -451,7 +537,8 @@ class App:
             lines.append(f"· {label}: {db:.0f} dBFS")
             if best is None or rms > best["rms"]:
                 best = item
-        playing = best is not None and best["rms"] >= 0.001
+        best = find_strongest_audio(results)
+        playing = best is not None
         details = "\n".join(lines[:12])
         if not playing:
             self.status.set("오디오 검사 완료 · 소리 신호가 감지되지 않았습니다.")
@@ -478,8 +565,10 @@ class App:
                 )
                 if match is not None:
                     self.device_combo.current(match)
-                    self.status.set(f"오디오 장치 변경 완료: {best_name} · 번역 시작을 눌러주세요.")
+                    self.remember_selected_device()
+                    self.status.set(f"오디오 장치 저장 완료: {best_name} · 다음 실행부터 자동 선택합니다.")
         else:
+            self.remember_selected_device()
             messagebox.showinfo(
                 "오디오 검사",
                 f"선택한 장치에서 소리를 감지했습니다.\n"
@@ -590,6 +679,12 @@ class App:
         selected = self.devices[self.device_combo.current()]
         if self._audio_scan_busy:
             messagebox.showinfo("오디오 검사", "진행 중인 소리 찾기가 끝난 뒤 번역을 시작해 주세요.")
+            return
+        # On a first launch (or when a saved device is disconnected), find
+        # the real active playback loopback once, without requiring a click on
+        # '소리 찾기'. Manual mic selections bypass automatic output scanning.
+        if selected[2] and self._needs_auto_source:
+            self.scan_audio(auto_start=True)
             return
         engine = self.engine.get()
         if engine not in ("argos", "google"):
@@ -733,9 +828,15 @@ class App:
                         self.capture_started_at = time.monotonic()
                 elif kind == "scan_completed":
                     self._audio_scan_busy = False
-                    self.show_audio_scan(data)
+                    auto = self._auto_start_pending
+                    self._auto_start_pending = False
+                    if auto:
+                        self.use_detected_audio_and_start(data)
+                    else:
+                        self.show_audio_scan(data)
                 elif kind == "scan_failed":
                     self._audio_scan_busy = False
+                    self._auto_start_pending = False
                     self.status.set("오디오 신호 검사 실패")
                     messagebox.showerror("오디오 검사 실패", data)
                 elif kind == "model_loaded":
