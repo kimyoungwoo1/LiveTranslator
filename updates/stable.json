@@ -1,15 +1,15 @@
 {
-  "version": "0.6.3",
+  "version": "0.6.4",
   "min_bootstrap": "0.6.0",
-  "notes": "Selectable Argos offline or official Google Cloud Translation Basic (v2) online; Google API key is stored with Windows DPAPI per-user encryption; recognized text is sent only when Google is selected.",
+  "notes": "Single high-quality Argos offline profile: beam 4, float32, sentence-buffered translation and Whisper beam 3. Google Cloud remains independently selectable. Increased CPU load and subtitle delay are possible.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.3/app_core.py",
-      "git_sha1": "3b9fefa661e6f74229c304a76795b13a337cd249"
+      "path": "updates/v0.6.4/app_core.py",
+      "git_sha1": "df2761be021bac9ec878675030d793a42e69594a"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.3/streaming_pipeline.py",
-      "git_sha1": "ddc6100c1331879995a88094c9a9edeb7949d1bb"
+      "path": "updates/v0.6.4/streaming_pipeline.py",
+      "git_sha1": "acf71754e928575f17e8b49684173a165bce6e78"
     }
   }
 }
