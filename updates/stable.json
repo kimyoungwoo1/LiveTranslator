@@ -1,14 +1,14 @@
 {
-  "version": "0.6.9",
+  "version": "0.6.10",
   "min_bootstrap": "0.6.0",
-  "notes": "Fix sound finder hanging at 2/5 on AMD/HDMI virtual audio devices. Read only available audio frames with a deadline; watchdog caps each device scan at 3.5 seconds and continues after a timeout. Shows timeout details without changing selected output automatically.",
+  "notes": "Prevent obvious Argos numeric mistranslation such as 'six billion euro' -> '6억 유로' (should be 60억 유로). Apply only when one source magnitude and one simple Korean magnitude are present; leave ambiguous/compound amounts unchanged. Does not repair inaccurate Whisper transcripts or guarantee professional translation accuracy.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.9/app_core.py",
-      "git_sha1": "681a13b6477cd437674af4cc320d034d7f91ba5a"
+      "path": "updates/v0.6.10/app_core.py",
+      "git_sha1": "1e6372cad63a371fb61f65e38eea9fe1470af3dc"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.9/streaming_pipeline.py",
+      "path": "updates/v0.6.10/streaming_pipeline.py",
       "git_sha1": "6453f8bdfe8a2ea8b8cbb4b88f2cfb4ed915b332"
     }
   }
