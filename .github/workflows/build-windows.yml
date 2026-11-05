@@ -29,6 +29,23 @@ jobs:
         run: python -m py_compile main.py
       - name: Package application
         run: python -m PyInstaller --noconfirm --clean --onedir --windowed --name LiveTranslator --collect-all faster_whisper --collect-all ctranslate2 --collect-all argostranslate main.py
+      - name: Analyze packaged file sizes
+        shell: pwsh
+        run: |
+          $root = "dist/LiveTranslator"
+          $files = Get-ChildItem $root -File -Recurse
+          $total = ($files | Measure-Object -Property Length -Sum).Sum
+          "## Package size report" >> $env:GITHUB_STEP_SUMMARY
+          ("Total unpacked size: {0:N1} MiB" -f ($total / 1MB)) >> $env:GITHUB_STEP_SUMMARY
+          "" >> $env:GITHUB_STEP_SUMMARY
+          "| Top 20 files | MiB |" >> $env:GITHUB_STEP_SUMMARY
+          "|---|---:|" >> $env:GITHUB_STEP_SUMMARY
+          $files | Sort-Object Length -Descending | Select-Object -First 20 | ForEach-Object {
+            ("| {0} | {1:N1} |" -f ($_.FullName.Substring((Resolve-Path $root).Path.Length + 1).Replace("\\","/")), ($_.Length / 1MB)) >> $env:GITHUB_STEP_SUMMARY
+          }
+          $files | Sort-Object Length -Descending | Select-Object -First 80 | ForEach-Object {
+            "{0:N2} MiB  {1}" -f ($_.Length / 1MB), $_.FullName
+          }
       - name: Upload test executable
         uses: actions/upload-artifact@v4
         with:
