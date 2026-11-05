@@ -255,23 +255,55 @@ class App:
             self.overlay.withdraw()
 
     def refresh(self):
+        # Keep a stable name so Bluetooth and virtual device index changes do not
+        # silently switch the capture source. Use the currently active output
+        # as the first/default option for new users.
+        old_name = None
+        old_loopback = None
+        if self.devices and self.device_combo.current() >= 0:
+            old = self.devices[self.device_combo.current()]
+            old_name = old[3] if len(old) > 3 else None
+            old_loopback = old[2]
         devices = []
         p = pyaudio.PyAudio()
         try:
-            for info in p.get_loopback_device_info_generator():
-                devices.append((f"🔊 출력 | {info['name']} [Loopback]", int(info["index"]), True))
+            loopbacks = [
+                info for info in p.get_loopback_device_info_generator()
+                if int(info.get("maxInputChannels", 0)) > 0
+            ]
+            default_index = None
+            try:
+                default = p.get_default_wasapi_loopback()
+                default_index = int(default["index"])
+            except (OSError, LookupError, AttributeError, KeyError, TypeError):
+                pass
+            loopbacks.sort(key=lambda info: 0 if int(info["index"]) == default_index else 1)
+            for info in loopbacks:
+                name = str(info["name"])
+                is_default = int(info["index"]) == default_index
+                label = ("🔊 기본 출력 | " if is_default else "🔊 출력 | ") + name
+                devices.append((label, int(info["index"]), True, name))
             for i in range(p.get_device_count()):
                 info = p.get_device_info_by_index(i)
-                if info.get("maxInputChannels", 0) > 0 and not info.get("isLoopbackDevice", False):
-                    devices.append((f"🎤 입력 | {info['name']}", int(info["index"]), False))
+                if int(info.get("maxInputChannels", 0)) > 0 and not info.get("isLoopbackDevice", False):
+                    name = str(info["name"])
+                    devices.append((f"🎤 입력 | {name}", int(info["index"]), False, name))
+        except Exception as exc:
+            self.status.set(f"오디오 장치 조회 오류: {exc}")
+            return
         finally:
             p.terminate()
         self.devices = devices
         self.device_combo["values"] = [d[0] for d in devices]
-        if devices:
-            self.device_combo.current(0)
-        else:
-            self.status.set("오디오 장치를 찾을 수 없습니다.")
+        if not devices:
+            self.status.set("오디오 장치를 찾을 수 없습니다. Windows 출력/입력 장치를 확인하세요.")
+            return
+        match = next(
+            (i for i, device in enumerate(devices) if device[3] == old_name and device[2] == old_loopback),
+            None,
+        )
+        self.device_combo.current(match if match is not None else 0)
+        self.status.set("오디오 장치 목록을 갱신했습니다. 실제 소리가 나오는 출력 장치를 선택하세요.")
 
     def configure_google_key(self):
         if self.running:
