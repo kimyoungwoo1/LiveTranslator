@@ -10,10 +10,12 @@ from tkinter import simpledialog
 from urllib import error as urlerror
 from urllib import request as urlrequest
 os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
-# Favor responsive CPU translation; beam size 1 trades some quality for speed.
-os.environ.setdefault("ARGOS_CHUNK_TYPE", "MINISBD")
-os.environ.setdefault("ARGOS_DEVICE_TYPE", "cpu")
-os.environ.setdefault("ARGOS_BEAM_SIZE", "1")
+# Single high-quality offline Argos mode; no speed/balanced mode selection.
+# Set these before argostranslate is imported in the translation worker.
+os.environ["ARGOS_CHUNK_TYPE"] = "MINISBD"
+os.environ["ARGOS_DEVICE_TYPE"] = "cpu"
+os.environ["ARGOS_BEAM_SIZE"] = "4"
+os.environ["ARGOS_COMPUTE_TYPE"] = "float32"
 import json
 import queue
 import threading
@@ -130,7 +132,7 @@ def google_translate_text(text, source_lang, api_key):
 class App:
     def __init__(self, root):
         self.root = root
-        root.title(f"LiveTranslator v{updater.current_version()} - 오프라인 한국어 자막")
+        root.title(f"LiveTranslator v{updater.current_version()} - 실시간 한국어 자막")
         root.geometry("880x710")
         self.events = queue.Queue()
         self.stop_signal = threading.Event()
@@ -188,7 +190,7 @@ class App:
         row = ttk.Frame(frame)
         row.pack(fill="x", pady=(3, 8))
         ttk.Label(row, text="번역 엔진", width=13).pack(side="left")
-        ttk.Radiobutton(row, text="Argos (오프라인)", variable=self.engine, value="argos").pack(side="left", padx=(0, 12))
+        ttk.Radiobutton(row, text="Argos 고품질 (오프라인)", variable=self.engine, value="argos").pack(side="left", padx=(0, 12))
         ttk.Radiobutton(row, text="Google Cloud (온라인)", variable=self.engine, value="google").pack(side="left")
         ttk.Button(row, text="Google API 키 설정", command=self.configure_google_key).pack(side="left", padx=(15, 0))
         ttk.Label(frame, text="Google 모드에서는 인식된 텍스트만 Google에 전송되며 API 사용 요금이 발생할 수 있습니다.",
@@ -391,6 +393,7 @@ class App:
                 language=language,
                 model=self._cached_model,
                 translate=translate_cached,
+                quality_mode=(engine == "argos"),
                 emit_status=lambda status: self.events.put(("status", status)),
                 emit_original=lambda original: self.events.put(("original", original)),
                 emit_result=lambda original, translated: self.events.put(("result", (original, translated))),
