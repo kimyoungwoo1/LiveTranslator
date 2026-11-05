@@ -201,6 +201,7 @@ class App:
                 model=self._cached_model,
                 translate=lambda original, lang: argostranslate.translate.translate(original, lang, "ko"),
                 emit_status=lambda status: self.events.put(("status", status)),
+                emit_original=lambda original: self.events.put(("original", original)),
                 emit_result=lambda original, translated: self.events.put(("result", (original, translated))),
                 stop_event=self.stop_signal,
             )
@@ -217,10 +218,11 @@ class App:
                     self.status.set(data)
                 elif kind == "error":
                     self.status.set(f"오류: {data}")
+                elif kind == "original":
+                    self.original.insert("end", data + "\n")
+                    self.original.see("end")
                 elif kind == "result":
                     original, translated = data
-                    self.original.insert("end", original + "\n")
-                    self.original.see("end")
                     self.translated.insert("end", translated + "\n")
                     self.translated.see("end")
                     self.overlay_text.config(text=translated)
