@@ -197,8 +197,21 @@ def probe_audio_source(selected, seconds=1.1):
         sum_sq = 0.0
         sample_count = 0
         peak = 0.0
-        while remaining > 0:
+        deadline = time.monotonic() + max(2.0, 2.5 * seconds)
+        while remaining > 0 and time.monotonic() < deadline:
             nframes = min(frames, remaining)
+            # Some disconnected HDMI/virtual WASAPI loopbacks open successfully
+            # but block indefinitely in read(). Only read frames known to be
+            # available, or let the outer worker watchdog time out.
+            try:
+                available = stream.get_read_available()
+            except (AttributeError, OSError):
+                available = None
+            if available is not None:
+                if available <= 0:
+                    time.sleep(0.04)
+                    continue
+                nframes = min(nframes, int(available))
             raw = stream.read(nframes, exception_on_overflow=False)
             mono = audio_to_mono(raw, channels, fmt)
             if not mono.size:
@@ -208,7 +221,10 @@ def probe_audio_source(selected, seconds=1.1):
             peak = max(peak, float(np.max(np.abs(mono))))
             remaining -= nframes
         rms = (sum_sq / sample_count) ** 0.5 if sample_count else 0.0
-        return {"name": device["name"], "rms": rms, "peak": peak, "channels": channels}
+        result = {"name": device["name"], "rms": rms, "peak": peak, "channels": channels}
+        if not sample_count:
+            result["warning"] = "오디오 데이터 없음 (출력 장치 비활성 또는 드라이버 대기)"
+        return result
     finally:
         if stream is not None:
             try:
@@ -220,12 +236,36 @@ def probe_audio_source(selected, seconds=1.1):
             pa.terminate()
 
 
-def find_active_loopback(devices, progress=None, seconds=1.0, max_devices=12):
-    """Survey only playback loopbacks while external audio is playing.
+def probe_with_timeout(selected, seconds=1.0, timeout=3.5):
+    """Bound each driver probe even if a native PortAudio call hangs.
 
-    Returns one result per candidate. A failure for one driver does not block
-    the remaining devices; automatic selection is left to the user.
+    An unresponsive device is abandoned in a daemon thread. This is a
+    diagnostic, not a long-running background capture service.
     """
+    slot = queue.Queue(maxsize=1)
+
+    def task():
+        try:
+            slot.put_nowait(("ok", probe_audio_source(selected, seconds=seconds)))
+        except Exception as exc:
+            slot.put_nowait(("error", str(exc)))
+
+    thread = threading.Thread(target=task, name="AudioProbeWatchdog", daemon=True)
+    thread.start()
+    try:
+        status, result = slot.get(timeout=timeout)
+    except queue.Empty:
+        raise TimeoutError(
+            "장치 응답 시간 초과 (연결되지 않은 HDMI/가상 장치일 수 있음)"
+        ) from None
+    if status != "ok":
+        raise RuntimeError(result)
+    return result
+
+
+def find_active_loopback(devices, progress=None, seconds=1.0, max_devices=12,
+                         max_seconds_per_device=3.5):
+    """Survey playback loopbacks without hanging on any single device."""
     candidates = [dev for dev in devices if dev[2]]
     seen = set()
     unique = []
@@ -241,10 +281,14 @@ def find_active_loopback(devices, progress=None, seconds=1.0, max_devices=12):
         if progress is not None:
             progress(index, len(unique), device[0])
         try:
-            result = probe_audio_source(device, seconds=seconds)
+            result = probe_with_timeout(
+                device, seconds=seconds, timeout=max_seconds_per_device
+            )
             results.append({"device": device, **result})
         except Exception as exc:
-            results.append({"device": device, "name": device[0], "error": str(exc)})
+            results.append({
+                "device": device, "name": device[0], "error": str(exc)
+            })
     return results
 
 
