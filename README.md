@@ -49,7 +49,7 @@ This is an experimental CPU streaming pipeline, not guaranteed simultaneous inte
 
 The program has a stable PyInstaller launcher and a separate patchable application module. **Download the v0.6.0 updater-enabled EXE once** after the Windows workflow succeeds. Then use `업데이트 확인` in the app to fetch the current published patch from [updates/stable.json](updates/stable.json). Updates are opt-in, HTTPS-only, limited to `app_core.py` and `streaming_pipeline.py`, and verified against the Git blob object digests recorded in the manifest before activation. The previous patch is backed up.
 
-This proof of concept publishes v0.6.1 as a small code-only patch so the update button can be tested. It only changes an initial UI status message; it does not claim faster translation than v0.6.0. Once applied, restart to see v0.6.1.
+This proof of concept publishes small code-only patches through the same manifest. The manifest currently points to v0.6.4.
 
 - No new EXE build for changes confined to those two Python files. Downloaded AI models, local settings and transcripts remain untouched.
 - New Python/native dependencies, PyInstaller configuration, runtime hooks, and fixes to `launcher.py` or `updater.py` still require a **new EXE**.
@@ -71,3 +71,16 @@ This proof of concept publishes v0.6.1 as a small code-only patch so the update 
 - This is a code-release, **not yet validated end-to-end with a real billed Google Cloud account on Windows**. Avoid sending confidential workplace conversations unless organizational policy explicitly permits this.
 
 Google Cloud's official API documentation: https://docs.cloud.google.com/translate/docs/reference/rest/v2/translate
+
+## Argos high-quality mode (v0.6.4)
+
+There is ONE Argos mode (no speed/balanced/high-quality selector). It preserves the separate option to use Google Cloud Translation.
+
+- Argos beam search is increased from 1 to 4 and CTranslate2 compute type is set to float32 for translation quality priority.
+- Whisper uses beam size 3 rather than 1 when Argos is selected (speech recognition can also slow down).
+- Short, uninterrupted speech fragments are joined and translated at a sentence-ending punctuation mark, after 3 fragments, after a maximum 240 characters, or after 8+ seconds of accumulation. Silence flushes unfinished sentences. This improves translation context, but is not perfect sentence recognition.
+- Google mode keeps its previous chunk-based low-latency processing.
+- Quality comes with higher CPU use and potentially longer subtitle delay, especially with 16 GB RAM and CPU-only inference. If long delays occur, consider choosing the base speech model and a 3-second capture interval; not every Whisper small model improves real-time responsiveness.
+- There is still a bounded queue and skipped-chunk counter: severe overload can cause missing words even in high-quality mode. No claim of professional-grade simultaneous interpretation is made.
+
+Use **업데이트 확인** on an updater-enabled v0.6+ EXE to install the current source patch. This does **not** require downloading a new executable or a new speech model.
