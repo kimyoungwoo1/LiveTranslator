@@ -1,15 +1,15 @@
 {
-  "version": "0.6.10",
+  "version": "0.6.11",
   "min_bootstrap": "0.6.0",
-  "notes": "Prevent obvious Argos numeric mistranslation such as 'six billion euro' -> '6억 유로' (should be 60억 유로). Apply only when one source magnitude and one simple Korean magnitude are present; leave ambiguous/compound amounts unchanged. Does not repair inaccurate Whisper transcripts or guarantee professional translation accuracy.",
+  "notes": "Remember the last manually chosen or sound-finder-confirmed output by device name across app restarts. Restore the same Razer/headset even if PortAudio indexes change. When no saved output is available, the first Translate Start automatically scans active playback loopbacks and saves the first audible device. Manual source choice remains supported; no scanning on every start.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.10/app_core.py",
-      "git_sha1": "1e6372cad63a371fb61f65e38eea9fe1470af3dc"
+      "path": "updates/v0.6.11/app_core.py",
+      "git_sha1": "546e5947ff825f80cf76dac308a1ed9f51f8e2e6"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.10/streaming_pipeline.py",
-      "git_sha1": "6453f8bdfe8a2ea8b8cbb4b88f2cfb4ed915b332"
+      "path": "updates/v0.6.11/streaming_pipeline.py",
+      "git_sha1": "c07e366cbd3206240bd18533f06ab3ba4ea9d393"
     }
   }
 }
