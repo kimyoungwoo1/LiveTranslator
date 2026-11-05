@@ -929,6 +929,7 @@ class App:
                 emit_status=lambda status: self.events.put(
                     ("error" if status.startswith("오디오 캡처 오류:") else "status", status)
                 ),
+                emit_error=lambda message: self.events.put(("error", message)),
                 emit_audio_level=lambda rms, peak: self.events.put(("audio_level", (rms, peak))),
                 emit_original=lambda original: self.events.put(("original", original)),
                 emit_result=lambda original, translated: self.events.put(("result", (original, translated))),
