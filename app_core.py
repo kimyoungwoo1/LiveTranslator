@@ -477,7 +477,7 @@ class App:
                 from streaming_pipeline import find_active_loopback, probe_with_timeout
                 if selected[2]:
                     results = find_active_loopback(
-                        devices, seconds=1.0,
+                        devices, seconds=1.0, stop_on_signal=bool(auto_start),
                         progress=lambda i, count, label: self.events.put(
                             ("status", f"오디오 검사 중 ({i}/{count}) · {label}")
                         ),
