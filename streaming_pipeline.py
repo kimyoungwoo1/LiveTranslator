@@ -75,6 +75,88 @@ class SentenceBuffer:
         return results
 
 
+
+def resolve_capture_device(pa, selected):
+    """Resolve a live PortAudio device by stable name, not a cached device index.
+
+    The device list may change when Bluetooth/USB/default playback devices move.
+    Never silently switch to another output because that would translate the
+    wrong audio source.
+    """
+    old_index = int(selected[1])
+    is_loopback = bool(selected[2])
+    expected_name = selected[3] if len(selected) > 3 else None
+    if is_loopback:
+        devices = [
+            info for info in pa.get_loopback_device_info_generator()
+            if int(info.get("maxInputChannels", 0)) > 0
+        ]
+    else:
+        devices = [
+            pa.get_device_info_by_index(i)
+            for i in range(pa.get_device_count())
+        ]
+        devices = [
+            info for info in devices
+            if int(info.get("maxInputChannels", 0)) > 0
+            and not info.get("isLoopbackDevice", False)
+        ]
+    if expected_name:
+        same_name = [info for info in devices if info.get("name") == expected_name]
+        if not same_name:
+            raise RuntimeError(
+                "선택한 오디오 장치가 변경되거나 연결 해제되었습니다. "
+                "오디오 장치 '새로고침' 후 실제 소리가 출력되는 장치를 선택하세요."
+            )
+        # If several host APIs expose the same name, preserve the selected index.
+        return next(
+            (info for info in same_name if int(info["index"]) == old_index),
+            same_name[0],
+        )
+    # Support older UI records that saved only the numeric device index.
+    for info in devices:
+        if int(info["index"]) == old_index:
+            return info
+    raise RuntimeError("선택한 오디오 장치를 찾을 수 없습니다. 목록을 새로고침하세요.")
+
+
+def open_capture_stream(pa, info):
+    """Try the device's native input channel count first, then compatible formats.
+
+    WASAPI loopback devices frequently mirror 5.1/7.1 outputs. Their advertised
+    maxInputChannels may be 6/8, and forcing stereo can fail on some drivers.
+    """
+    channels_available = int(info.get("maxInputChannels", 0))
+    rate = int(info.get("defaultSampleRate", 0))
+    if channels_available < 1 or rate <= 0:
+        raise RuntimeError("선택한 장치에 유효한 입력 채널 또는 샘플레이트가 없습니다.")
+    channel_options = [channels_available]
+    for channel in (2, 1):
+        if channel <= channels_available and channel not in channel_options:
+            channel_options.append(channel)
+    sample_formats = (pyaudio.paInt16, pyaudio.paFloat32)
+    frames = max(512, min(int(rate * 0.1), 8192))
+    attempts = []
+    for channels in channel_options:
+        for sample_format in sample_formats:
+            try:
+                stream = pa.open(
+                    format=sample_format, channels=channels, rate=rate,
+                    input=True, input_device_index=int(info["index"]),
+                    frames_per_buffer=frames,
+                )
+                return stream, rate, channels, frames, sample_format
+            except (OSError, ValueError) as exc:
+                attempts.append(f"{channels}ch/{sample_format}: {exc}")
+    detail = attempts[0] if attempts else "알 수 없는 오디오 장치 오류"
+    raise RuntimeError(
+        f"'{info.get('name', '선택한 장치')}'를 열 수 없습니다. "
+        f"Windows의 실제 출력 장치를 확인하고 목록을 새로고침하세요. "
+        f"({detail})"
+    )
+
+
+
 def run_stream(selected, interval_seconds, language, model, translate, emit_status,
                emit_original, emit_result, stop_event, quality_mode=False):
     pending = queue.Queue(maxsize=6 if quality_mode else 4)
@@ -88,27 +170,18 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
         stream = None
         try:
             pa = pyaudio.PyAudio()
-            info = pa.get_device_info_by_index(selected[1])
-            rate = int(info["defaultSampleRate"])
-            channels = min(int(info["maxInputChannels"]), 2)
-            if channels < 1 or rate <= 0:
-                raise RuntimeError("선택한 오디오 장치의 입력 설정이 올바르지 않습니다.")
-            frames = max(512, min(int(rate * 0.1), 8192))
-            stream = pa.open(
-                format=pyaudio.paFloat32,
-                channels=channels,
-                rate=rate,
-                input=True,
-                input_device_index=selected[1],
-                frames_per_buffer=frames,
-            )
-            emit_status("오디오 수집 시작. 음성 인식 중...")
+            info = resolve_capture_device(pa, selected)
+            stream, rate, channels, frames, sample_format = open_capture_stream(pa, info)
+            emit_status(f"오디오 연결 완료: {info['name']} · {channels}채널 · 음성 수집 중...")
             parts = []
             count = 0
             target_samples = rate * interval_seconds
             while not stop_event.is_set():
                 buffer = stream.read(frames, exception_on_overflow=False)
-                samples = np.frombuffer(buffer, dtype=np.float32)
+                if sample_format == pyaudio.paInt16:
+                    samples = np.frombuffer(buffer, dtype=np.int16).astype(np.float32) / 32768.0
+                else:
+                    samples = np.frombuffer(buffer, dtype=np.float32)
                 if channels > 1:
                     samples = samples.reshape(-1, channels).mean(axis=1)
                 parts.append(samples)
