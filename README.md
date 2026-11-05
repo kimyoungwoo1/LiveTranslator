@@ -130,3 +130,9 @@ Some inactive AMD/HDMI or virtual outputs can open successfully but block indefi
 - If an old v0.6.8 scan is stuck, close and reopen LiveTranslator, use **업데이트 확인** to get v0.6.9, restart, and then scan while the video is playing.
 
 Note: An unresponsive Windows native driver can leave a daemon diagnostic thread until the application exits. Repeated scans of broken drivers are discouraged; the fix prevents the UI's sequential scan from waiting indefinitely but cannot repair the driver itself.
+
+## Argos numeric accuracy guard (v0.6.10)
+
+This patch corrects a narrow class of clear English-to-Korean scale errors when the source has exactly one 'million', 'billion' or 'trillion' amount and the Korean translation contains exactly one simple '만', '억' or '조' number. Example: 'six billion euro' must be '60억 유로', not '6억 유로'. Ambiguous/compound/multiple amounts are left unchanged.
+
+This guard does not verify Whisper's transcription, infer context that is missing from 3-second speech fragments, or make Argos fluent like professionally edited subtitles. You can manually choose the **small** Whisper model and a 5-second recognition interval for a quality-versus-CPU-delay test; the extra speech model download is not triggered by the v0.6.10 code patch. Google Cloud Translation remains an optional online alternative.
