@@ -144,3 +144,13 @@ LiveTranslator now remembers the last explicitly selected or confirmed working a
 If no saved output is available, the first `번역 시작` automatically probes playback loopbacks for an audible signal and selects/saves the first one that is playing. This may take several seconds if a virtual driver times out; no microphone is auto-selected. After finding a source, translation starts automatically. Later starts use the saved source without an extra probe. You can still manually switch audio devices; changes are saved immediately.
 
 Apply using `업데이트 확인` to v0.6.11 and restart; a full EXE rebuild or model download is unnecessary. Selecting an output with `소리 찾기` and confirming it also saves your preference. If the output device is disconnected at start, automatic detection runs again.
+
+## Pause-aware speech recognition (v0.6.12)
+
+The Argos high-quality option now captures a longer, more natural phrase before recognizing speech. Instead of forcibly splitting every 3 seconds, it waits for a short quiet pause after the configured interval, with a hard cap of 2 extra seconds (up to 10 seconds for longer configured intervals). The local Whisper decoding beam increases to 5, and a short previous transcript is supplied as optional vocabulary context. That context is cleared after silence or dropped audio.
+
+**What this improves:** speech recognition around phrase boundaries, which may in turn help offline translation with vocabulary and sentence context. It cannot guarantee parity with professionally edited video subtitles, nor recover words that the microphone or audio output never captured.
+
+**Tradeoff:** higher CPU work per phrase and potentially increased subtitle delay or skipped chunks on slower CPUs. The existing base model remains selected unless the user explicitly chooses small; the update itself does not download any additional model. The Google provider retains its previous fixed-time capture processing.
+
+Apply by using **업데이트 확인** > v0.6.12 > restart on any updater-enabled v0.6+ client. For the prior Volkswagen news example, compare the original English transcript first, then the Korean translation; the first stage determines whether the translation gets the right English sentence.
