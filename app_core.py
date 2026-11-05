@@ -341,7 +341,7 @@ class App:
 
         def worker():
             try:
-                from streaming_pipeline import find_active_loopback, probe_audio_source
+                from streaming_pipeline import find_active_loopback, probe_with_timeout
                 if selected[2]:
                     results = find_active_loopback(
                         devices, seconds=1.0,
@@ -351,7 +351,7 @@ class App:
                     )
                 else:
                     self.events.put(("status", "선택한 마이크 신호 확인 중..."))
-                    result = probe_audio_source(selected, seconds=1.5)
+                    result = probe_with_timeout(selected, seconds=1.5, timeout=3.5)
                     results = [{"device": selected, **result}]
                 self.events.put(("scan_completed", results))
             except Exception as exc:
@@ -369,7 +369,10 @@ class App:
         for item in results:
             label = item["device"][0]
             if "error" in item:
-                lines.append(f"· {label}: 연결 불가")
+                lines.append(f"· {label}: {item['error']}")
+                continue
+            if item.get("warning"):
+                lines.append(f"· {label}: {item['warning']}")
                 continue
             rms = float(item["rms"])
             db = 20.0 * math.log10(max(rms, 1e-7))
