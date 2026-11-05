@@ -158,7 +158,7 @@ def open_capture_stream(pa, info):
 
 
 def run_stream(selected, interval_seconds, language, model, translate, emit_status,
-               emit_original, emit_result, stop_event, quality_mode=False):
+               emit_original, emit_result, stop_event, quality_mode=False, emit_audio_level=None):
     pending = queue.Queue(maxsize=6 if quality_mode else 4)
     capture_done = threading.Event()
     skipped = [0]
@@ -176,6 +176,10 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
             parts = []
             count = 0
             target_samples = rate * interval_seconds
+            meter_power = 0.0
+            meter_count = 0
+            meter_peak = 0.0
+            last_meter_at = time.monotonic()
             while not stop_event.is_set():
                 buffer = stream.read(frames, exception_on_overflow=False)
                 if sample_format == pyaudio.paInt16:
@@ -190,9 +194,27 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
                     loudest = float(np.max(channel_energy))
                     if loudest > 0:
                         active = channel_energy >= loudest * 0.05
-                        samples = multichannel[:, active].mean(axis=1)
+                        mono = multichannel[:, active].mean(axis=1)
+                        # Virtual surround can have phase-inverted channels.
+                        # Avoid canceling speech when the downmix is nearly silent.
+                        strongest = multichannel[:, int(np.argmax(channel_energy))]
+                        if float(np.mean(mono * mono)) < loudest * 0.04:
+                            mono = strongest
+                        samples = mono
                     else:
                         samples = multichannel.mean(axis=1)
+                # Level meter reflects the same mono audio sent to Whisper.
+                meter_power += float(np.sum(samples * samples))
+                meter_count += samples.size
+                meter_peak = max(meter_peak, float(np.max(np.abs(samples))))
+                now = time.monotonic()
+                if emit_audio_level is not None and now - last_meter_at >= 0.7:
+                    rms = (meter_power / meter_count) ** 0.5 if meter_count else 0.0
+                    emit_audio_level(rms, meter_peak)
+                    meter_power = 0.0
+                    meter_count = 0
+                    meter_peak = 0.0
+                    last_meter_at = now
                 parts.append(samples)
                 count += samples.size
                 if count < target_samples:
@@ -268,7 +290,9 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
             if not samples.size:
                 continue
             rms = float(np.sqrt(np.mean(samples * samples)))
-            if rms < 0.002:
+            # Preserve quiet but audible Windows loopback feeds.
+            if rms < 0.0005:
+                emit_status("오디오 수집 중 · 이 구간은 무음으로 판정됨")
                 if assembler:
                     item = assembler.flush()
                     if item:
@@ -291,6 +315,10 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
             if stop_event.is_set():
                 break
             if not original:
+                emit_status(
+                    "오디오 신호는 수집됐지만 음성 인식 결과가 없습니다. "
+                    "원본 언어·영상 음성·입력 음량을 확인하세요."
+                )
                 continue
             asr_seconds = time.monotonic() - before
             emit_original(original)
