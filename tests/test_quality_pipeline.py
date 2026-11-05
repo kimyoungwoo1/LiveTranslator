@@ -94,6 +94,30 @@ class QualityTests(unittest.TestCase):
         self.assertIn("recent_transcript[-140:]", text)
         self.assertIn('recent_transcript = ""', text)
 
+    def test_translation_runs_in_separate_worker_not_asr_loop(self):
+        import ast
+        root = Path(__file__).resolve().parent.parent
+        program = ast.parse((root / "streaming_pipeline.py").read_text(encoding="utf-8"))
+        stream = next(node for node in program.body
+                      if isinstance(node, ast.FunctionDef) and node.name == "run_stream")
+        methods = {node.name: node for node in stream.body
+                   if isinstance(node, ast.FunctionDef)}
+        self.assertIn("deliver", methods)
+        self.assertIn("translation_worker", methods)
+        deliver = ast.unparse(methods["deliver"])
+        translate_worker = ast.unparse(methods["translation_worker"])
+        self.assertIn("translation_pending.put_nowait(task)", deliver)
+        self.assertNotIn("translate(", deliver)
+        self.assertIn("translate(text, source_lang)", translate_worker)
+        self.assertIn("emit_result(text, result)", translate_worker)
+        self.assertIn("translation_thread.start()", ast.unparse(stream))
+        self.assertIn("음성 누락", ast.unparse(stream))
+        self.assertIn("번역 누락", ast.unparse(stream))
+
+    def test_translation_thread_reports_errors_to_ui(self):
+        app = (Path(__file__).resolve().parent.parent / "app_core.py").read_text(encoding="utf-8")
+        self.assertIn('emit_error=lambda message: self.events.put(("error", message))', app)
+
     def test_argos_one_quality_profile_and_google_still_selectable(self):
         app = (Path(__file__).resolve().parent.parent / "app_core.py").read_text(encoding="utf-8")
         self.assertIn('os.environ["ARGOS_BEAM_SIZE"] = "4"', app)
