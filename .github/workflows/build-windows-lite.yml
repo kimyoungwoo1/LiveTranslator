@@ -1,0 +1,59 @@
+name: Windows EXE lite experiment
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "main_lite.py"
+      - "hooks/argos_lite.py"
+      - ".github/workflows/build-windows-lite.yml"
+
+jobs:
+  build-lite:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+      - name: Syntax check
+        run: |
+          python -m py_compile main.py main_lite.py hooks/argos_lite.py
+      - name: Build without Stanza, PyTorch and SpaCy
+        shell: pwsh
+        run: |
+          python -m PyInstaller --noconfirm --clean --onedir --windowed --name LiveTranslator-Lite --runtime-hook hooks/argos_lite.py --exclude-module stanza --exclude-module torch --exclude-module torchaudio --exclude-module torchvision --exclude-module spacy --exclude-module thinc --collect-all faster_whisper --collect-all ctranslate2 --collect-all argostranslate --collect-all minisbd main_lite.py
+      - name: Frozen import smoke test
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath (Resolve-Path 'dist/LiveTranslator-Lite/LiveTranslator-Lite.exe').Path -ArgumentList '--self-test' -PassThru -Wait
+          if ($p.ExitCode -ne 0) { throw "Frozen application import self-test failed: $($p.ExitCode)" }
+      - name: Report package size
+        shell: pwsh
+        run: |
+          $root = 'dist/LiveTranslator-Lite'
+          $files = Get-ChildItem $root -File -Recurse
+          $total = ($files | Measure-Object Length -Sum).Sum
+          '## Experimental Lite size (unpacked)' >> $env:GITHUB_STEP_SUMMARY
+          ("{0:N1} MiB (baseline observed locally: ~867 MB)" -f ($total / 1MB)) >> $env:GITHUB_STEP_SUMMARY
+          '' >> $env:GITHUB_STEP_SUMMARY
+          '| Largest files | MiB |' >> $env:GITHUB_STEP_SUMMARY
+          '|---|---:|' >> $env:GITHUB_STEP_SUMMARY
+          $files | Sort-Object Length -Descending | Select-Object -First 15 | ForEach-Object {
+            ("| {0} | {1:N1} |" -f $_.Name, ($_.Length / 1MB)) >> $env:GITHUB_STEP_SUMMARY
+          }
+      - name: Upload experimental lite EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: LiveTranslator-Windows-Lite-EXPERIMENTAL
+          path: dist/LiveTranslator-Lite/
+          if-no-files-found: error
+          retention-days: 7
