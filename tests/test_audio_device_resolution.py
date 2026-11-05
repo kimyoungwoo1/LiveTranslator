@@ -105,5 +105,36 @@ class AudioDeviceTests(unittest.TestCase):
 
 
 
+    def test_hung_driver_is_skipped_and_next_device_scanned(self):
+        import time
+        first = ("🔊 출력 | HDMI AMD", 5, True, "HDMI AMD")
+        second = ("🔊 출력 | Speaker", 6, True, "Speaker")
+        def probe(device, seconds=1.0):
+            if device == first:
+                time.sleep(0.3)  # simulate PortAudio driver read() hang
+                return {"name": "HDMI AMD", "rms": 0.0, "peak": 0.0, "channels": 2}
+            return {"name": "Speaker", "rms": 0.11, "peak": 0.3, "channels": 2}
+        with mock.patch.object(self.module, "probe_audio_source", side_effect=probe):
+            started = time.monotonic()
+            results = self.module.find_active_loopback(
+                [first, second], max_seconds_per_device=0.035
+            )
+            elapsed = time.monotonic() - started
+        self.assertLess(elapsed, 0.25)
+        self.assertEqual(len(results), 2)
+        self.assertIn("시간 초과", results[0]["error"])
+        self.assertAlmostEqual(results[1]["rms"], 0.11)
+
+    def test_probe_watchdog_reports_errors_without_hanging(self):
+        def bad_probe(*args, **kwargs):
+            raise OSError(-9996, "Invalid device")
+        with mock.patch.object(self.module, "probe_audio_source", side_effect=bad_probe):
+            with self.assertRaisesRegex(RuntimeError, "Invalid device"):
+                self.module.probe_with_timeout(
+                    ("🔊 출력 | AMD", 3, True, "AMD"), timeout=0.1
+                )
+
+
+
 if __name__ == "__main__":
     unittest.main()
