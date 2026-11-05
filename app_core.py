@@ -140,6 +140,7 @@ class App:
         self.worker = None
         self._cached_model = None
         self._cached_model_key = None
+        self._model_check_busy = False
         self.running = False
         self.devices = []
         self.settings = self.load_settings()
@@ -199,6 +200,7 @@ class App:
         ttk.Radiobutton(row, text="Argos 고품질 (오프라인)", variable=self.engine, value="argos").pack(side="left", padx=(0, 12))
         ttk.Radiobutton(row, text="Google Cloud (온라인)", variable=self.engine, value="google").pack(side="left")
         ttk.Button(row, text="Google API 키 설정", command=self.configure_google_key).pack(side="left", padx=(15, 0))
+        ttk.Button(row, text="모델 진단", command=self.diagnose_models).pack(side="left", padx=(9, 0))
         ttk.Label(frame, text="Google 모드에서는 인식된 텍스트만 Google에 전송되며 API 사용 요금이 발생할 수 있습니다.",
                   foreground="#855800").pack(anchor="w", pady=(0, 4))
         row = ttk.Frame(frame)
@@ -340,6 +342,61 @@ class App:
         except Exception as exc:
             messagebox.showerror("Google API 키", f"키 저장 실패: {exc}")
 
+    def diagnose_models(self):
+        """Check selected speech and translation models without downloading new ones."""
+        if self.running:
+            messagebox.showinfo(
+                "모델 진단",
+                "번역 중입니다. Whisper 모델은 이미 로드됐습니다.\\n"
+                "먼저 중지하면 Argos 모델도 검사할 수 있습니다.",
+            )
+            return
+        if self._model_check_busy:
+            return
+        self._model_check_busy = True
+        model_name = self.model.get()
+        lang = self.language.get()
+        self.status.set("모델 진단 중 · 새 모델을 다운로드하지 않습니다...")
+
+        def job():
+            notes = []
+            try:
+                local = APP_DIR / "models" / model_name
+                files = ("model.bin", "config.json", "tokenizer.json")
+                complete = all((local / filename).is_file() for filename in files)
+                if self._cached_model is not None and self._cached_model_key:
+                    notes.append("Whisper: 이 프로그램에서 로드에 성공한 모델이 있습니다 (정상)")
+                elif complete:
+                    notes.append(f"Whisper {model_name}: 로컬 파일 확인됨. 실제 로딩은 번역 시작 시 검증")
+                else:
+                    notes.append(
+                        f"Whisper {model_name}: 별도 모델 폴더에는 없음. "
+                        "Hugging Face 캐시에 있을 수 있으므로 미설치로 단정할 수 없습니다."
+                    )
+                import argostranslate.translate
+                if lang == "ko":
+                    notes.append("Argos: 원본 언어가 한국어이므로 번역 모델이 필요하지 않습니다.")
+                else:
+                    for source in (("en", "ja") if lang == "auto" else (lang,)):
+                        try:
+                            translator = argostranslate.translate.get_translation_from_codes(source, "ko")
+                            if translator is None:
+                                notes.append(f"Argos {source}→ko: 미설치 또는 인식 불가. 모델 설치 버튼을 사용하세요.")
+                                continue
+                            test_phrase = "Hello." if source == "en" else "こんにちは。"
+                            translated = translator.translate(test_phrase)
+                            if not isinstance(translated, str) or not translated.strip():
+                                raise RuntimeError("번역 결과가 비어 있습니다.")
+                            notes.append(f"Argos {source}→ko: 테스트 번역 성공 · {translated.strip()[:80]}")
+                        except Exception as exc:
+                            notes.append(f"Argos {source}→ko: 번역 실패 · {type(exc).__name__}: {exc}")
+            except Exception as exc:
+                notes.append(f"모델 진단 실패 · {type(exc).__name__}: {exc}")
+            finally:
+                self.events.put(("model_report", "\\n".join(notes)))
+
+        threading.Thread(target=job, daemon=True, name="ModelDiagnostic").start()
+
     def install_pack(self, lang):
         if self.running:
             messagebox.showwarning("번역 중", "먼저 번역을 중지하세요.")
@@ -422,6 +479,7 @@ class App:
                     path, device="cpu", compute_type="int8", cpu_threads=6
                 )
                 self._cached_model_key = path
+            self.events.put(("model_loaded", model_name))
             if self.stop_signal.is_set():
                 return
             translators = {}
@@ -500,6 +558,12 @@ class App:
                     self.status.set(data)
                     if data.startswith("오디오 연결 완료:"):
                         self.capture_started_at = time.monotonic()
+                elif kind == "model_loaded":
+                    self.status.set(f"Whisper {data} 모델 로드 성공 · 오디오 수집 준비 중...")
+                elif kind == "model_report":
+                    self._model_check_busy = False
+                    self.status.set("모델 진단 완료 · 결과 팝업을 확인하세요.")
+                    messagebox.showinfo("LiveTranslator 모델 진단", data)
                 elif kind == "audio_level":
                     rms, peak = data
                     self.last_audio_meter_at = time.monotonic()
