@@ -2,6 +2,8 @@
 import datetime
 import math
 import os
+import re
+from decimal import Decimal, InvalidOperation
 import subprocess
 import sys
 import ctypes
@@ -128,6 +130,76 @@ def google_translate_text(text, source_lang, api_key):
         raise RuntimeError("Google 번역 네트워크 연결 실패 또는 8초 시간 초과") from None
     except (KeyError, IndexError, TypeError, ValueError):
         raise RuntimeError("Google 번역 응답을 해석할 수 없습니다.") from None
+
+
+
+# A narrow safety check for financial quantities. It does not attempt to
+# translate sentences or infer amounts Whisper failed to recognize.
+_SCALE = {"million": Decimal("1000000"), "billion": Decimal("1000000000"),
+          "trillion": Decimal("1000000000000")}
+_ENGLISH_NUMBERS = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+    "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+    "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14,
+    "fifteen": 15, "sixteen": 16, "seventeen": 17,
+    "eighteen": 18, "nineteen": 19, "twenty": 20,
+    "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60,
+    "seventy": 70, "eighty": 80, "ninety": 90
+}
+_SCALE_EXPR = re.compile(
+    r"\b(?P<number>\d+(?:,\d{3})*(?:\.\d+)?|"
+    + "|".join(_ENGLISH_NUMBERS.keys())
+    + r")\s+(?P<scale>million|billion|trillion)\b", re.IGNORECASE
+)
+_KOREAN_SCALE = re.compile(r"(?<![\d.])(?P<n>\d+(?:\.\d+)?)\s*(?P<u>조|억|만)(?![\w])")
+
+
+def _format_korean_large_number(english_number, scale):
+    try:
+        amount = Decimal(str(_ENGLISH_NUMBERS.get(
+            english_number.lower(), english_number.replace(",", "")
+        ))) * _SCALE[scale.lower()]
+    except (InvalidOperation, ValueError, KeyError):
+        return None
+    for factor, suffix in (
+        (Decimal("1000000000000"), "조"),
+        (Decimal("100000000"), "억"),
+        (Decimal("10000"), "만"),
+    ):
+        if amount >= factor and amount % factor == 0:
+            number = amount / factor
+            return f"{number:f}".rstrip("0").rstrip(".") + suffix if number != number.to_integral_value() else f"{int(number)}{suffix}"
+    return None
+
+
+def guard_argos_quantity(source, translated):
+    """Fix only unambiguous single-scale numeric magnitude mistranslations.
+
+    Example: 'nearly six billion euro' translated as '거의 6억 유로'
+    -> '거의 60억 유로'. Skip compound amounts and multiple quantities,
+    rather than risk silently fabricating the translated meaning.
+    """
+    expressions = list(_SCALE_EXPR.finditer(source))
+    quantities = list(_KOREAN_SCALE.finditer(translated))
+    if len(expressions) != 1 or len(quantities) != 1:
+        return translated
+    original = expressions[0]
+    expected = _format_korean_large_number(
+        original.group("number"), original.group("scale")
+    )
+    if not expected:
+        return translated
+    current = quantities[0]
+    # A Korean result such as "2억 5천만" is a compound quantity.
+    # Never replace only its first portion.
+    after = translated[current.end():current.end() + 16]
+    if re.match(r"\s*\d+\s*(?:천|백|십)?\s*(?:만|억)", after):
+        return translated
+    if current.group(0).replace(" ", "") == expected:
+        return translated
+    # Only change a single simple Korean scale amount.
+    return translated[:current.start()] + expected + translated[current.end():]
+
 
 
 class App:
@@ -590,7 +662,8 @@ class App:
                     if translator is None:
                         raise RuntimeError(f"{lang}→ko 번역 모델이 없습니다. 먼저 설치해 주세요.")
                     translators[lang] = translator
-                return translators[lang].translate(original)
+                candidate = translators[lang].translate(original)
+                return guard_argos_quantity(original, candidate)
 
             run_stream(
                 selected=selected,
