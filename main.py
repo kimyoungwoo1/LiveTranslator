@@ -28,13 +28,15 @@ class App:
         self.events = queue.Queue()
         self.stop_signal = threading.Event()
         self.worker = None
+        self._cached_model = None
+        self._cached_model_key = None
         self.running = False
         self.devices = []
         self.settings = self.load_settings()
         self.device = tk.StringVar()
         self.language = tk.StringVar(value=self.settings.get("language", "en"))
         self.model = tk.StringVar(value=self.settings.get("model", "base"))
-        self.seconds = tk.StringVar(value=str(self.settings.get("seconds", 4)))
+        self.seconds = tk.StringVar(value=str(self.settings.get("seconds", 3)))
         self.save_enabled = tk.BooleanVar(value=self.settings.get("save", False))
         self.overlay_enabled = tk.BooleanVar(value=False)
         self.status = tk.StringVar(value="장치를 선택하고 번역을 시작하세요.")
@@ -163,7 +165,7 @@ class App:
         self.start_btn.config(state="disabled")
         self.stop_btn.config(state="normal")
         self.status.set("음성 인식 모델을 초기화하는 중...")
-        self.worker = threading.Thread(target=self.capture_and_translate, args=(selected,), daemon=True)
+        self.worker = threading.Thread(target=self.capture_and_translate, args=(selected, self.language.get(), self.model.get(), int(self.seconds.get())), daemon=True)
         self.worker.start()
 
     def stop(self):
@@ -173,73 +175,38 @@ class App:
         self.stop_btn.config(state="disabled")
         self.status.set("중지 요청됨. 진행 중인 AI 처리가 끝나면 종료됩니다.")
 
-    def capture_and_translate(self, selected):
-        stream = None
-        pa = None
+    def capture_and_translate(self, selected, language, model_name, seconds):
         try:
             from faster_whisper import WhisperModel
             import argostranslate.translate
-            self.events.put(("status", "음성 인식 모델을 로드 중입니다. 첫 실행에는 다운로드가 필요합니다."))
-            local_model = APP_DIR / "models" / self.model.get()
-            model_path = str(local_model) if all((local_model / name).is_file() for name in ("model.bin", "config.json", "tokenizer.json")) else self.model.get()
-            if model_path == str(local_model):
-                self.events.put(("status", "로컬 음성 인식 모델을 불러오는 중..."))
-            model = WhisperModel(model_path, device="cpu", compute_type="int8", cpu_threads=6)
+            from streaming_pipeline import run_stream
+
+            local_model = APP_DIR / "models" / model_name
+            path = str(local_model) if all(
+                (local_model / name).is_file()
+                for name in ("model.bin", "config.json", "tokenizer.json")
+            ) else model_name
+            if self._cached_model is None or self._cached_model_key != path:
+                self.events.put(("status", "음성 인식 모델을 로드하는 중..."))
+                self._cached_model = WhisperModel(
+                    path, device="cpu", compute_type="int8", cpu_threads=6
+                )
+                self._cached_model_key = path
             if self.stop_signal.is_set():
                 return
-            pa = pyaudio.PyAudio()
-            info = pa.get_device_info_by_index(selected[1])
-            rate = int(info["defaultSampleRate"])
-            channels = min(int(info["maxInputChannels"]), 2)
-            if channels < 1:
-                raise RuntimeError("선택한 장치에 입력 채널이 없습니다.")
-            frames = max(512, int(rate * .1))
-            stream = pa.open(format=pyaudio.paFloat32, channels=channels, rate=rate, input=True,
-                             input_device_index=selected[1], frames_per_buffer=frames)
-            self.events.put(("status", "실시간 음성 수집 및 번역 중"))
-            chunk = []
-            length = 0
-            while not self.stop_signal.is_set():
-                samples = np.frombuffer(stream.read(frames, exception_on_overflow=False), dtype=np.float32)
-                if channels > 1:
-                    samples = samples.reshape(-1, channels).mean(axis=1)
-                chunk.append(samples)
-                length += samples.size
-                if length < rate * int(self.seconds.get()):
-                    continue
-                samples = np.concatenate(chunk)
-                chunk, length = [], 0
-                if self.stop_signal.is_set() or np.sqrt(np.mean(samples * samples)) < .002:
-                    continue
-                samples = resample_poly(samples, 16000, rate).astype(np.float32)
-                self.events.put(("status", "음성 인식 중..."))
-                segments, metadata = model.transcribe(samples, language=None if self.language.get() == "auto" else self.language.get(),
-                                                       vad_filter=True, beam_size=1, condition_on_previous_text=False)
-                original = " ".join(segment.text.strip() for segment in segments).strip()
-                if self.stop_signal.is_set():
-                    break
-                if not original:
-                    self.events.put(("status", "음성 수집 중"))
-                    continue
-                source_lang = metadata.language if self.language.get() == "auto" else self.language.get()
-                if source_lang == "ko":
-                    translated = original
-                else:
-                    translated = argostranslate.translate.translate(original, source_lang, "ko")
-                if not self.stop_signal.is_set():
-                    self.events.put(("result", (original, translated)))
-                    self.events.put(("status", "음성 수집 및 번역 중"))
+            run_stream(
+                selected=selected,
+                interval_seconds=seconds,
+                language=language,
+                model=self._cached_model,
+                translate=lambda original, lang: argostranslate.translate.translate(original, lang, "ko"),
+                emit_status=lambda status: self.events.put(("status", status)),
+                emit_result=lambda original, translated: self.events.put(("result", (original, translated))),
+                stop_event=self.stop_signal,
+            )
         except Exception as exc:
             self.events.put(("error", str(exc)))
         finally:
-            if stream is not None:
-                try:
-                    stream.stop_stream()
-                    stream.close()
-                except Exception:
-                    pass
-            if pa is not None:
-                pa.terminate()
             self.events.put(("ended", None))
 
     def consume(self):
@@ -265,7 +232,7 @@ class App:
                     self.running = False
                     self.start_btn.config(state="normal")
                     self.stop_btn.config(state="disabled")
-                    if self.stop_signal.is_set():
+                    if self.stop_signal.is_set() and not self.status.get().startswith(("오류:", "오디오 캡처 오류:")):
                         self.status.set("중지 완료")
         except queue.Empty:
             pass
