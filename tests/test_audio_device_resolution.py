@@ -73,5 +73,37 @@ class AudioDeviceTests(unittest.TestCase):
             self.module.open_capture_stream(pa, info)
 
 
+    def test_signal_finder_checks_playback_loopbacks_only(self):
+        one = ("🔊 기본 출력 | A", 1, True, "A")
+        two = ("🔊 출력 | B", 2, True, "B")
+        mic = ("🎤 입력 | Mic", 3, False, "Mic")
+        fake = [
+            {"name": "A", "rms": 0.0, "peak": 0.0, "channels": 2},
+            {"name": "B", "rms": 0.07, "peak": 0.3, "channels": 2},
+        ]
+        with mock.patch.object(self.module, "probe_audio_source", side_effect=fake) as probe:
+            results = self.module.find_active_loopback([one, mic, two, two], seconds=0.8)
+        self.assertEqual(len(results), 2)
+        self.assertEqual(probe.call_count, 2)
+        self.assertEqual(results[0]["device"], one)
+        self.assertEqual(results[1]["device"], two)
+        self.assertEqual(results[1]["rms"], 0.07)
+
+    def test_signal_finder_continues_after_broken_virtual_output(self):
+        a = ("🔊 출력 | Virtual", 1, True, "Virtual")
+        b = ("🔊 출력 | Speaker", 2, True, "Speaker")
+        with mock.patch.object(
+            self.module, "probe_audio_source",
+            side_effect=[
+                OSError(-9996, "Invalid device"),
+                {"name": "Speaker", "rms": 0.09, "peak": 0.4, "channels": 2},
+            ]
+        ):
+            results = self.module.find_active_loopback([a, b])
+        self.assertIn("error", results[0])
+        self.assertEqual(results[1]["rms"], 0.09)
+
+
+
 if __name__ == "__main__":
     unittest.main()
