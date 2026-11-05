@@ -89,6 +89,7 @@ class App:
         ttk.Checkbutton(row, text="항상 위에 자막", variable=self.overlay_enabled, command=self.toggle_overlay).pack(side="left", padx=12)
         ttk.Button(row, text="기록 폴더", command=lambda: messagebox.showinfo("저장 위치", str(TRANSCRIPTS))).pack(side="right")
         ttk.Button(row, text="업데이트 확인", command=self.check_update).pack(side="right", padx=10)
+        ttk.Button(row, text="자막 지우기", command=self.clear_output).pack(side="right", padx=5)
         row = ttk.Frame(frame)
         row.pack(fill="x", pady=4)
         self.start_btn = ttk.Button(row, text="▶ 번역 시작", command=self.start)
@@ -113,6 +114,23 @@ class App:
         self.overlay_text.pack(fill="both", expand=True)
         self.overlay.protocol("WM_DELETE_WINDOW", self.hide_overlay)
         self.overlay.withdraw()
+
+    def clear_output(self):
+        """Clear displayed captions without stopping capture or deleting TXT logs."""
+        self.original.delete("1.0", "end")
+        self.translated.delete("1.0", "end")
+        self.overlay_text.config(text="")
+        retained = []
+        try:
+            while True:
+                event = self.events.get_nowait()
+                if event[0] not in ("original", "result"):
+                    retained.append(event)
+        except queue.Empty:
+            pass
+        for event in retained:
+            self.events.put_nowait(event)
+        self.status.set("화면 자막을 지웠습니다. 번역이 실행 중이면 다음 자막부터 다시 표시됩니다.")
 
     def hide_overlay(self):
         self.overlay_enabled.set(False)
