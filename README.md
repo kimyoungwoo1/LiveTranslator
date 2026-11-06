@@ -249,3 +249,16 @@ The original text is saved on recognition even if translation is slower. Korean 
 The **기록 폴더 열기** button launches the folder in Windows Explorer, rather than showing its path in a popup. Old daily files such as `2026-11-05.txt` remain unchanged, and deleting/clearing on-screen subtitles does not delete saved TXT records.
 
 This is an in-app Python code update, with no EXE/model redownload.
+
+## v0.6.21 — Hy-MT2 dialogue subtitle continuity
+
+Retest on the official British Council 'A phone call from a customer' recording exposed two recoverable speech-to-text presentation issues in v0.6.20: overlapping audio occasionally generated long repeated phrases (`we can make a We can make an exception`), and Whisper ended ongoing expressions early (`Let me see.` + `what I can do.`, `It works.` + `both ways.`).
+
+**v0.6.21 changes:**
+
+- Drop adjacent repeated **3+ word prefixes** only when they appear back-to-back within a recognized English segment and have no intervening sentence punctuation. Short/uncertain false starts such as `So you So your` remain untouched.
+- Defer translation of a few recognizable unfinished English tails, remove an incorrectly inserted full stop, and join their immediate lowercase continuation before sending them to Hy-MT2 or Argos.
+- If the chunk already contains full sentences, translate those complete sentences **right away** and hold only the unfinished tail. Other normal sentences continue to translate immediately.
+- Preserve the 0.7-second audio overlap, saved transcripts and existing model runtime. No model or EXE redownload.
+
+This is a conservative sentence-boundary heuristic, not a perfect grammar/parser, and is not guaranteed to repair omissions such as 'extend it to 60 days' or misheard names. Repeated real phrases without punctuation can rarely be collapsed; assess the English transcript against the known script, and keep an eye on the audio skip counters. Actual Windows live ASR and per-subtitle latency are not yet verified for this patch.
