@@ -50,7 +50,7 @@ class SentenceBuffer:
     # are translated immediately, preserving real-time subtitle responsiveness.
     _OPEN_END = re.compile(
         r"\b(?:let me see|it works|i'll keep an eye out|"
-        r"i'm not|i am not|need an extension|"
+        r"i'm not(?: sure)?|i am not(?: sure)?|need an extension|"
         # A Whisper chunk may stop after a partial *clause* even with '?' or '.'.
         # Hold only high-confidence tails rather than every short utterance.
         r"it works both|let me see what i can|"
@@ -218,6 +218,15 @@ class SentenceBuffer:
             complete = self._release_completed_prefix(now)
             if complete:
                 results.append(complete)
+                return results
+            # A short, clearly dangling clause deserves one more fragment
+            # even if earlier recognition took long enough to hit the bound.
+            # Limit this extension so an uncompleted phrase never stalls live
+            # subtitles indefinitely.
+            if (self._likely_unfinished(self.text, language)
+                    and self.count <= self.max_fragments
+                    and len(self.text) < self.max_chars):
+                self.awaiting_continuation = True
                 return results
         if is_terminal or bounded:
             completed = self.flush()
