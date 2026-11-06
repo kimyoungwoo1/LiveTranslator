@@ -468,7 +468,7 @@ def _hym_runtime_asset():
         choices = [
             asset for asset in assets
             if re.fullmatch(
-                r"llama-.*-bin-win-cpu-x64\\.zip",
+                r"llama-.*-bin-win-cpu-x64\.zip",
                 asset.get("name", ""), re.I
             )
         ]
