@@ -1,15 +1,15 @@
 {
-  "version": "0.6.38",
+  "version": "0.6.39",
   "min_bootstrap": "0.6.0",
-  "notes": "Improve short business dialogue translations grounded strictly in recognized source text: preserve company name Red Band, correctly interpret 'I need a favor' as requesting rather than offering help, and 'A favor?' as asking for clarification. Preserve 'our own cash flow' across adjacent ASR chunks if Whisper punctuates 'cash.' before 'flow'. Do not fabricate omitted words such as 'speaking', change Whisper phone greeting punctuation unconditionally, or auto-rewrite negation. Default auto recognition, audio choices, paired transcript and offline AI summary remain unchanged. Windows syntax and full regression suite passed.",
+  "notes": "Increase bounded audio context overlap from 0.7 to 0.9 seconds to reduce cutting spoken words at streaming ASR chunk boundaries. Existing verified transcript overlap deduplication remains enabled; audio chunks are queued only once. Preserve automatic speech recognition, Hy-MT2 translation, two saved TXT files, and user settings. Windows syntax and full regression suite passed. This may improve clipped boundary words but does not recover speech entirely missed by Whisper.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.38/app_core.py",
+      "path": "updates/v0.6.39/app_core.py",
       "git_sha1": "bb8adc741e9cc1c95f11546129ff51ca4f311ac5"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.38/streaming_pipeline.py",
-      "git_sha1": "042caac1fe6efce979a267d407834f4bacb58165"
+      "path": "updates/v0.6.39/streaming_pipeline.py",
+      "git_sha1": "e71a148641ea7a9622ceb12b4fcf61f1f32517bf"
     }
   }
 }
