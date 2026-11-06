@@ -1,15 +1,15 @@
 {
-  "version": "0.6.40",
+  "version": "0.6.41",
   "min_bootstrap": "0.6.0",
-  "notes": "Repair English sentence assembly before offline translation: retain high-confidence incomplete spoken clauses despite Whisper's false question mark/period (e.g. 'It works both.' + 'ways.', 'Let me see what I can.' + 'do.', 'We are happy to help.' + 'you.'); suppress a verified repeated dangling question word ('How?' followed by 'How can...') instead of translating the duplicate alone. Preserve genuinely new speaker turns and complete questions, avoid inventing missed speech, keep realtime bounds, automatic ASR and two TXT files. All 141 Windows regression tests and syntax checks passed.",
+  "notes": "Improve English-to-Korean conversation flow from actual user transcripts: hold clearly unfinished 'I'm not sure' clauses for one bounded additional ASR fragment; avoid delaying complete sentences. Correct source-confirmed echo question 'A favor?' when Hy-MT2 repeats the original request. Improve business idioms 'We appreciate your business' and 'It works both ways' within longer spoken dialogue while not changing literal two-way machinery descriptions. No invented missing speech or unsupported negation correction. Keep automatic recognition, realtime translation, AI summaries and two TXT outputs unchanged. Windows syntax and full regression tests passed.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.40/app_core.py",
+      "path": "updates/v0.6.41/app_core.py",
       "git_sha1": "bb8adc741e9cc1c95f11546129ff51ca4f311ac5"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.40/streaming_pipeline.py",
-      "git_sha1": "9bbe81793f4da91e48a8dbb57dbb2c6b956d95f0"
+      "path": "updates/v0.6.41/streaming_pipeline.py",
+      "git_sha1": "68c60f4da2ca21c14704c841f89bcc13a00e21de"
     }
   }
 }
