@@ -263,6 +263,10 @@ class App:
         self.last_audio_meter_at = None
         self.capture_started_at = None
         self.last_original_at = None
+        self.session_started_at = None
+        self.session_record_dir = None
+        self.session_engine = None
+        self.session_language = None
         self.build_ui()
         self.refresh()
         self.root.after(100, self.consume)
@@ -504,8 +508,8 @@ class App:
                    style="LTDanger.TButton").pack(side="right")
         ttk.Button(footer, text="업데이트 확인", command=self.check_update,
                    style="LT.TButton").pack(side="right", padx=(0, 7))
-        ttk.Button(footer, text="기록 폴더",
-                   command=lambda: messagebox.showinfo("저장 위치", str(TRANSCRIPTS)),
+        ttk.Button(footer, text="기록 폴더 열기",
+                   command=self.open_transcripts_folder,
                    style="LT.TButton").pack(side="right", padx=(0, 7))
 
         self.overlay = tk.Toplevel(self.root)
@@ -531,6 +535,60 @@ class App:
             self.live_label.configure(text="● 중지 중", fg="#f9bd79")
         else:
             self.live_label.configure(text="● 대기 중", fg="#36d2a0")
+
+    def open_transcripts_folder(self):
+        """Open the saved records folder, not just its path."""
+        try:
+            TRANSCRIPTS.mkdir(parents=True, exist_ok=True)
+            if os.name == "nt":
+                os.startfile(str(TRANSCRIPTS))
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", str(TRANSCRIPTS)])
+            else:
+                subprocess.Popen(["xdg-open", str(TRANSCRIPTS)])
+        except (OSError, ValueError) as exc:
+            messagebox.showerror("기록 폴더 열기 실패", str(exc))
+
+    def _create_transcript_session(self):
+        """Create separate source and Korean records for each translation run."""
+        TRANSCRIPTS.mkdir(parents=True, exist_ok=True)
+        started = self.session_started_at or datetime.datetime.now()
+        engine = {"argos": "Argos", "hymt": "Hy-MT2", "google": "Google"}.get(
+            self.session_engine, "Unknown"
+        )
+        lang = self.session_language if self.session_language in ("en", "ja", "ko", "auto") else "auto"
+        base_name = f"{started:%Y-%m-%d_%H-%M-%S}_{engine}_{lang}"
+        for index in range(1000):
+            suffix = f"_{index:02d}" if index else ""
+            destination = TRANSCRIPTS / (base_name + suffix)
+            try:
+                destination.mkdir(exist_ok=False)
+                break
+            except FileExistsError:
+                continue
+        else:
+            raise OSError("번역 세션 저장 폴더를 생성할 수 없습니다.")
+        header = (
+            f"LiveTranslator · {started:%Y-%m-%d %H:%M:%S}\n"
+            f"번역 엔진: {engine} | 원본 언어: {lang}\n\n"
+        )
+        (destination / "원문.txt").write_text(header, encoding="utf-8-sig")
+        (destination / "한국어_번역.txt").write_text(header, encoding="utf-8-sig")
+        self.session_record_dir = destination
+
+    def save_transcript(self, kind, text):
+        """Append to one of two per-session files; preserve old daily files."""
+        if not self.save_enabled.get() or not text.strip():
+            return
+        try:
+            if self.session_record_dir is None:
+                self._create_transcript_session()
+            filename = "원문.txt" if kind == "original" else "한국어_번역.txt"
+            with (self.session_record_dir / filename).open("a", encoding="utf-8") as handle:
+                handle.write(f"[{datetime.datetime.now():%H:%M:%S}] {text.strip()}\n\n")
+        except OSError as exc:
+            self.save_enabled.set(False)
+            self.status.set(f"TXT 기록 저장 실패 · 저장 옵션 해제됨: {exc}")
 
     def clear_output(self):
         """Clear displayed captions without stopping capture or deleting TXT logs."""
@@ -998,6 +1056,10 @@ class App:
                 "회사 보안 정책 및 녹음 동의 여부를 확인했나요?"):
                 return
         self.persist()
+        self.session_started_at = datetime.datetime.now()
+        self.session_record_dir = None
+        self.session_engine = engine
+        self.session_language = self.language.get()
         self.stop_signal = threading.Event()
         self.running = True
         self.set_live_indicator("running")
@@ -1208,15 +1270,13 @@ class App:
                     self.last_original_at = time.monotonic()
                     self.original.insert("end", data + "\n")
                     self.original.see("end")
+                    self.save_transcript("original", data)
                 elif kind == "result":
                     original, translated = data
                     self.translated.insert("end", translated + "\n")
                     self.translated.see("end")
                     self.overlay_text.config(text=translated)
-                    if self.save_enabled.get():
-                        filename = TRANSCRIPTS / (datetime.date.today().isoformat() + ".txt")
-                        with filename.open("a", encoding="utf-8") as f:
-                            f.write(f"[{datetime.datetime.now():%H:%M:%S}] {original}\n{translated}\n\n")
+                    self.save_transcript("translation", translated)
                 elif kind == "ended":
                     self.running = False
                     self.set_live_indicator("idle")
