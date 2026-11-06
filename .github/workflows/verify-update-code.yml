@@ -26,5 +26,5 @@ jobs:
           python -m py_compile app_core.py updater.py streaming_pipeline.py launcher.py
           python -m py_compile updates/v0.6.34/app_core.py updates/v0.6.34/streaming_pipeline.py
           python -m unittest discover -s tests -p "test_patch_syntax.py" -v
-      - name: Regression - v0.6.34 summary evidence and business idioms
+      - name: Regression - v0.6.34 verified summary evidence and idioms
         run: python -m unittest discover -s tests -v
