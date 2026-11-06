@@ -189,8 +189,8 @@ class HyMT2Tests(unittest.TestCase):
         self.assertIn("CURRENT (translate this only):", requests[0])
         self.assertIn("PREVIOUS (context only):", requests[1])
         self.assertIn("And we appreciate your business, Andrea.", requests[1])
-        self.assertTrue(requests[1].endswith("CURRENT (translate this only):\\nIt works both ways."))
-        self.assertTrue(requests[2].endswith("CURRENT (translate this only):\\nI'll keep an eye out for it."))
+        self.assertTrue(requests[1].endswith("CURRENT (translate this only):\nIt works both ways."))
+        self.assertTrue(requests[2].endswith("CURRENT (translate this only):\nI'll keep an eye out for it."))
         self.assertIn("never translate or repeat PREVIOUS", requests[2])
         self.assertEqual(len(backend._source_context), 2)
 
