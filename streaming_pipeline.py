@@ -51,6 +51,12 @@ class SentenceBuffer:
     _OPEN_END = re.compile(
         r"\b(?:let me see|it works|i'll keep an eye out|"
         r"i'm not|i am not|need an extension|"
+        # A Whisper chunk may stop after a partial *clause* even with '?' or '.'.
+        # Hold only high-confidence tails rather than every short utterance.
+        r"it works both|let me see what i can|"
+        r"(?:we're|we are) happy to help|"
+        r"(?:i|we) (?:can|could|would|should) do|"
+        r"(?:how|what|where|when|why|who|which)|"
         # Whisper can put a false period between 'some cash' and 'flow
         # problems'. Hold this narrowly defined noun phrase, not all 'cash'.
         r"(?:some|our|your|their|own)\s+cash|"
@@ -135,11 +141,24 @@ class SentenceBuffer:
             if previous:
                 results.append(previous)
         elif self.awaiting_continuation and not self._likely_continuation(fragment):
-            # A clearly new utterance must not be attached to an unfinished
-            # guess from another turn.
-            previous = self.flush()
-            if previous:
-                results.append(previous)
+            # Whisper sometimes emits "How?" before recognizing "How can I
+            # help you?" in the next audio window. The latter repeats the
+            # exact word, so it is a verified restart, not new speech.
+            trailing = re.search(r"\\b(how|what|where|when|why|who|which)[.!?]?\\s*$",
+                                 self.text, re.IGNORECASE)
+            leading = re.match(r"\\s*([a-z]+)\\b\\s+\\w+", fragment, re.IGNORECASE)
+            if (trailing and leading and
+                    trailing.group(1).casefold() == leading.group(1).casefold()):
+                self.text = self.text[:trailing.start()].rstrip()
+                self.awaiting_continuation = False
+                if not self.text:
+                    self.reset()
+            else:
+                # A clearly new utterance must not be attached to an
+                # unfinished guess from another turn.
+                previous = self.flush()
+                if previous:
+                    results.append(previous)
         continuing = self.awaiting_continuation
         # Avoid exact adjacent duplicate chunks due to Whisper hallucinations.
         if self.text and fragment == self.last_fragment:
