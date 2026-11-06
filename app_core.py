@@ -451,7 +451,7 @@ class App:
         ttk.Checkbutton(actions, text="항상 위에 자막", variable=self.overlay_enabled,
                         command=self.toggle_overlay,
                         style="LTCheck.TCheckbutton").pack(side="right")
-        ttk.Checkbutton(actions, text="번역 내역 TXT 저장", variable=self.save_enabled,
+        ttk.Checkbutton(actions, text="원문·번역 TXT 분리 저장", variable=self.save_enabled,
                         style="LTCheck.TCheckbutton").pack(side="right", padx=(0, 16))
 
         status_panel = ttk.Frame(outer, style="LTCard.TFrame", padding=(15, 10))
