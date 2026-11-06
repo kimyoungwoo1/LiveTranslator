@@ -84,6 +84,9 @@ class QualityTests(unittest.TestCase):
                 return len(self)
             def copy(self):
                 return Samples(self)
+            def __getitem__(self, key):
+                result = super().__getitem__(key)
+                return Samples(result) if isinstance(key, slice) else result
 
         concat = lambda arrays: Samples(list(arrays[0]) + list(arrays[1]))
         with mock.patch.object(self.pipeline.np, "concatenate", side_effect=concat):
