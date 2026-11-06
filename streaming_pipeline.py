@@ -689,6 +689,26 @@ def setup_hym(folder, progress, custom_path=None, cancel=None):
     progress("Hy-MT2 모델과 공식 llama.cpp CPU 실행기 설치 완료")
 
 
+def _hym_current_text_guidance(text, source_lang):
+    """Optional short style hint based solely on this translation input.
+
+    Crucially, never include the previous utterance: the 1.8B local model
+    previously translated past speech instead of the current sentence.
+    """
+    if source_lang != "en":
+        return ""
+    if (re.search(r"\bappreciate your business\b", text, re.IGNORECASE)
+            and re.search(r"\bit works both ways\b", text, re.IGNORECASE)):
+        return ("In this customer conversation, express appreciation for the "
+                "customer's business and mutual benefit, not a machine "
+                "operating in two directions. ")
+    if re.search(r"\bappreciate your business\b", text, re.IGNORECASE):
+        return "Here, 'business' means a customer's patronage, not their company. "
+    if re.search(r"\bkeep an eye out for it\b", text, re.IGNORECASE):
+        return "Here, 'keep an eye out' means to watch for or expect something. "
+    return ""
+
+
 class HyMT2Backend:
     """Launch a private local CPU-only llama-server and translate via loopback."""
     def __init__(self, folder, server_path=None):
@@ -756,11 +776,15 @@ class HyMT2Backend:
         # The small CPU model can translate the *previous* phrase instead of
         # the current phrase when both are supplied. Fail closed on context:
         # send only the current recognized utterance, never dialogue history.
+        # Style guidance is selected solely from CURRENT text and contains
+        # no previous dialogue or separate passage to translate.
+        guidance = _hym_current_text_guidance(text, source_lang)
         prompt = (
             f"Translate the following {lang} text into natural, polite Korean "
             "as spoken in a real conversation. Interpret common conversational "
             "idioms by their meaning. Preserve negation, questions, numbers, "
             "amounts and proper names. Do not guess or add missing speech. "
+            + guidance +
             "Output only the Korean translation without explanation.\n\n" +
             text[:5000]
         )
