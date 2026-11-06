@@ -26,5 +26,5 @@ jobs:
           python -m py_compile app_core.py updater.py streaming_pipeline.py launcher.py
           python -m py_compile updates/v0.6.23/app_core.py updates/v0.6.23/streaming_pipeline.py
           python -m unittest discover -s tests -p "test_patch_syntax.py" -v
-      - name: Test update integrity, acoustic overlap and sentence reconstruction
+      - name: Regression - context-aware Hy-MT2 and existing audio pipelines
         run: python -m unittest discover -s tests -v
