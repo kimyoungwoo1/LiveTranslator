@@ -960,7 +960,7 @@ class HyMT2Backend:
 # The ASR context overlap is not streamed twice: only the NEW audio block
 # counts toward the next capture interval. A small portion of the previous
 # block is included solely to avoid truncating a word at a hard cut.
-QUALITY_OVERLAP_SECONDS = 0.7
+QUALITY_OVERLAP_SECONDS = 0.9
 _OVERLAP_WORD = re.compile(r"\b[\w']+\b", re.UNICODE)
 
 
