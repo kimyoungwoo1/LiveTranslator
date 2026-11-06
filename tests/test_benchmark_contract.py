@@ -16,7 +16,7 @@ class BenchmarkContractTests(unittest.TestCase):
         for path in ("compare_translation_models.py", "report.py"):
             ast.parse((BENCH / path).read_text(encoding="utf-8"))
         self.assertNotIn("quickmt", (ROOT / "requirements.txt").read_text(encoding="utf-8"))
-        self.assertNotIn("Hy-MT2", (ROOT / "app_core.py").read_text(encoding="utf-8"))
+        self.assertIn('value="hymt"', (ROOT / "app_core.py").read_text(encoding="utf-8"))
 
     def test_clean_reference_and_noisy_asr_cases_are_separate(self):
         cases = json.loads((BENCH / "en_ko_cases.json").read_text(encoding="utf-8"))
