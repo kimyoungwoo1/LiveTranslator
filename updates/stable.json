@@ -1,15 +1,15 @@
 {
-  "version": "0.6.18",
+  "version": "0.6.19",
   "min_bootstrap": "0.6.0",
-  "notes": "Improve offline speech completeness and Hy-MT2/Argos translation across chunk boundaries without new models: carry 0.7 seconds of previous mono audio into next Whisper analysis; remove only verified duplicate English word sequences; treat trailing ellipses as unfinished speech before translating; dynamically reduce Whisper beam search only when CPU audio queue builds up, keeping beam 5 otherwise. Google fast-mode remains unchanged. May slightly increase CPU load and delay; accuracy must be validated on real audio.",
+  "notes": "Emergency hotfix for v0.6.18 update failure: repair a truncated SentenceBuffer terminal regular-expression string at streaming_pipeline.py line 24. Preserve 0.7-second Whisper overlap, sentence joining, adaptive beam settings and all three translation engines. No new EXE or models required. If v0.6.18 failed to apply, retry Check Updates and install v0.6.19.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.18/app_core.py",
+      "path": "updates/v0.6.19/app_core.py",
       "git_sha1": "c1198c18ebdd9921acd3c2d33c6905448527d1a1"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.18/streaming_pipeline.py",
-      "git_sha1": "89d651daf03595a0ff71be51102dd2a49f66e7cb"
+      "path": "updates/v0.6.19/streaming_pipeline.py",
+      "git_sha1": "53d79dbf815024143ceb6062390c21be532143f9"
     }
   }
 }
