@@ -46,6 +46,66 @@ class HyMT2Tests(unittest.TestCase):
                 handle.truncate(500_000_001)
             self.assertTrue(self.mod.hym_ready(folder))
 
+    def test_xet_metadata_head_supplies_sha_without_lfs_tree(self):
+        digest = "a" * 64
+        response = mock.MagicMock()
+        response.headers = {
+            "X-Linked-Etag": '"' + digest + '"',
+            "X-Linked-Size": "1130000000",
+        }
+        opener = mock.MagicMock()
+        opener.open.return_value = response
+        with mock.patch.object(
+            self.mod.urlrequest, "build_opener", return_value=opener
+        ), mock.patch.object(self.mod, "_hym_json", side_effect=AssertionError(
+            "Xet metadata does not need LFS tree"
+        )):
+            result = self.mod._hym_model_metadata()
+        self.assertEqual(result, (digest, 1130000000))
+        self.assertEqual(opener.open.call_args.args[0].get_method(), "HEAD")
+
+    def test_windows_cpu_asset_sha256_from_official_release(self):
+        asset = {
+            "name": "llama-b12122-bin-win-cpu-x64.zip",
+            "digest": "sha256:" + "b" * 64,
+            "browser_download_url":
+                "https://github.com/ggml-org/llama.cpp/releases/download/b12122/"
+                "llama-b12122-bin-win-cpu-x64.zip",
+        }
+        with mock.patch.object(
+            self.mod, "_hym_json", return_value={"assets": [asset]}
+        ):
+            url, digest, name = self.mod._hym_runtime_asset()
+        self.assertEqual(name, asset["name"])
+        self.assertEqual(digest, "b" * 64)
+        self.assertEqual(url, asset["browser_download_url"])
+
+    def test_official_sha_pinned_fallback_when_release_api_has_no_digest(self):
+        with mock.patch.object(
+            self.mod, "_hym_json",
+            return_value={"assets": [{
+                "name": "llama-b12122-bin-win-cpu-x64.zip",
+                "browser_download_url": "https://github.com/ggml-org/llama.cpp/releases/download/b12122/llama-b12122-bin-win-cpu-x64.zip",
+                "digest": None,
+            }]}
+        ):
+            result = self.mod._hym_runtime_asset()
+        self.assertEqual(result, self.mod.HYM_PINNED_WIN_CPU)
+        self.assertEqual(len(result[1]), 64)
+
+    def test_official_sha_pinned_fallback_when_api_is_blocked(self):
+        with mock.patch.object(
+            self.mod, "_hym_json", side_effect=OSError("HTTP 403")
+        ):
+            result = self.mod._hym_runtime_asset()
+        self.assertEqual(result, self.mod.HYM_PINNED_WIN_CPU)
+
+    def test_installer_error_is_visible_and_saved(self):
+        src = (ROOT / "app_core.py").read_text(encoding="utf-8")
+        self.assertIn('text="설치 오류 확인"', src)
+        self.assertIn('install_error.log', src)
+        self.assertIn('self.status.set(f"Hy-MT2 설치 실패 · {data[:190]}")', src)
+
     def test_only_trusted_official_sha256_downloads(self):
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaisesRegex(RuntimeError, "SHA-256"):
