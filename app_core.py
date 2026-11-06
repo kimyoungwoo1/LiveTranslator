@@ -241,6 +241,8 @@ class App:
         self.worker = None
         self._cached_model = None
         self._cached_model_key = None
+        self._model_loading_started = None
+        self._model_loading_name = None
         self._model_check_busy = False
         self._audio_scan_busy = False
         self._hym_install_busy = False
@@ -1436,10 +1438,11 @@ class App:
                 for name in ("model.bin", "config.json", "tokenizer.json")
             ) else model_name
             if self._cached_model is None or self._cached_model_key != path:
-                self.events.put(("status", "음성 인식 모델을 로드하는 중..."))
-                self._cached_model = WhisperModel(
+                self.events.put(("model_loading", (model_name, path == model_name)))
+                loaded_model = WhisperModel(
                     path, device="cpu", compute_type="int8", cpu_threads=6
                 )
+                self._cached_model = loaded_model
                 self._cached_model_key = path
             self.events.put(("model_loaded", model_name))
             if self.stop_signal.is_set():
@@ -1567,7 +1570,19 @@ class App:
                     self._auto_start_pending = False
                     self.status.set("오디오 신호 검사 실패")
                     messagebox.showerror("오디오 검사 실패", data)
+                elif kind == "model_loading":
+                    model_name, possibly_download = data
+                    self._model_loading_name = model_name
+                    self._model_loading_started = time.monotonic()
+                    self.status.set(
+                        f"Whisper {model_name} 초기화 중 · "
+                        + ("첫 사용 시 모델 자동 다운로드가 포함될 수 있습니다. "
+                           "PC의 인터넷 연결과 디스크 여유 공간을 확인하세요."
+                           if possibly_download else "로컬 모델을 불러오는 중입니다.")
+                    )
                 elif kind == "model_loaded":
+                    self._model_loading_started = None
+                    self._model_loading_name = None
                     self.status.set(f"Whisper {data} 모델 로드 성공 · 오디오 수집 준비 중...")
                 elif kind == "model_report":
                     self._model_check_busy = False
@@ -1605,6 +1620,8 @@ class App:
                         f"코드 업데이트 v{data} 다운로드를 완료했습니다.\n지금 재시작할까요?"):
                         self.restart_app()
                 elif kind == "error":
+                    self._model_loading_started = None
+                    self._model_loading_name = None
                     self.status.set(f"오류: {data}")
                 elif kind == "original":
                     self.last_original_at = time.monotonic()
@@ -1625,6 +1642,8 @@ class App:
                     self.summary_running = False
                     self.status.set(f"AI 요약 TXT 생성 실패 · {data[:140]}")
                 elif kind == "ended":
+                    self._model_loading_started = None
+                    self._model_loading_name = None
                     self._start_ai_summary()
                     self.running = False
                     self.set_live_indicator("idle")
@@ -1641,6 +1660,21 @@ class App:
                 and time.monotonic() - self.capture_started_at > 5):
             self.audio_state.set("오디오 데이터 수신 없음 · 다른 출력 장치 선택 또는 드라이버 확인")
             self.audio_meter.set(0)
+        # Display elapsed time during the blocking first-run model download.
+        # This does not interrupt the worker and never claims a download percent.
+        started = getattr(self, "_model_loading_started", None)
+        if started is not None and self.running:
+            seconds_waiting = int(time.monotonic() - started)
+            if seconds_waiting >= 8:
+                model = self._model_loading_name or self.model.get()
+                detail = (
+                    "최초 다운로드 또는 캐시 확인 중일 수 있습니다"
+                    if seconds_waiting < 90 else
+                    "인터넷 연결·방화벽·Hugging Face 다운로드 상태를 확인하세요"
+                )
+                self.status.set(
+                    f"Whisper {model} 준비 중 · {seconds_waiting}초 경과 · {detail}"
+                )
         self.root.after(100, self.consume)
 
     def close(self):
