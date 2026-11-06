@@ -37,6 +37,7 @@ APP_DIR.mkdir(parents=True, exist_ok=True)
 SETTINGS = APP_DIR / "settings.json"
 TRANSCRIPTS = APP_DIR / "transcripts"
 TRANSCRIPTS.mkdir(exist_ok=True)
+HYM_DIR = APP_DIR / "hy_mt2"
 
 
 GOOGLE_KEY_FILE = APP_DIR / "google_api_key.dpapi"
@@ -242,6 +243,8 @@ class App:
         self._cached_model_key = None
         self._model_check_busy = False
         self._audio_scan_busy = False
+        self._hym_install_busy = False
+        self._hym_install_cancel = threading.Event()
         self._auto_start_pending = False
         self._needs_auto_source = False
         self.running = False
@@ -277,6 +280,7 @@ class App:
             "seconds": self.seconds.get(), "save": self.save_enabled.get(),
             "engine": self.engine.get(),
             "audio_device": self.settings.get("audio_device"),
+            "hym_server": self.settings.get("hym_server"),
         }, ensure_ascii=False, indent=2), encoding="utf-8")
 
     def remember_selected_device(self, event=None):
@@ -411,10 +415,21 @@ class App:
                         value="argos", style="LTRadio.TRadiobutton").pack(side="left", padx=(0, 13))
         ttk.Radiobutton(row, text="Google Cloud · 온라인", variable=self.engine,
                         value="google", style="LTRadio.TRadiobutton").pack(side="left", padx=(0, 12))
-        ttk.Button(row, text="API 키 설정", command=self.configure_google_key,
-                   style="LT.TButton").pack(side="right")
+        ttk.Radiobutton(row, text="Hy-MT2 · 오프라인", variable=self.engine,
+                        value="hymt", style="LTRadio.TRadiobutton").pack(side="left")
+        tools = ttk.Frame(engine_card, style="LTCard.TFrame")
+        tools.pack(fill="x", pady=(8, 0))
+        self.hym_install_btn = ttk.Button(
+            tools, text="Hy-MT2 설치", command=self.install_hymt, style="LT.TButton"
+        )
+        self.hym_install_btn.pack(side="left", padx=(0, 6))
+        ttk.Button(tools, text="llama.cpp 실행기 선택",
+                   command=self.choose_hymt_server, style="LT.TButton").pack(side="left")
+        ttk.Button(tools, text="Google API 키 설정",
+                   command=self.configure_google_key, style="LT.TButton").pack(side="right")
         ttk.Label(engine_card,
-                  text="Google 모드는 인식된 텍스트를 전송하며 API 요금이 발생할 수 있습니다.",
+                  text="Hy-MT2는 최초 설치 시 약 1.1GB 모델 + CPU 실행기가 필요합니다. "
+                       "오프라인 번역 / Google은 인식된 텍스트가 외부로 전송될 수 있습니다.",
                   style="LTCardMuted.TLabel").pack(anchor="w", pady=(7, 0))
 
         actions = ttk.Frame(outer, style="LT.TFrame")
@@ -732,6 +747,59 @@ class App:
                 "이제 번역 시작을 눌러주세요.\n\n" + details,
             )
 
+    def choose_hymt_server(self):
+        if self.running or self._hym_install_busy:
+            messagebox.showinfo("Hy-MT2 실행기", "번역과 설치를 중지한 뒤 실행기를 지정하세요.")
+            return
+        path = filedialog.askopenfilename(
+            parent=self.root, title="llama.cpp 실행기 선택 (llama-server.exe)",
+            filetypes=[("llama-server.exe", "llama-server.exe"), ("Windows 실행기", "*.exe")]
+        )
+        if not path:
+            return
+        if Path(path).name.lower() != "llama-server.exe":
+            messagebox.showerror("Hy-MT2 실행기", "공식 llama-server.exe를 선택해야 합니다.")
+            return
+        self.settings["hym_server"] = path
+        self.persist()
+        self.status.set("Hy-MT2 실행기 경로 저장 완료. 모델이 없다면 설치를 진행하세요.")
+
+    def install_hymt(self):
+        if self.running:
+            messagebox.showinfo("Hy-MT2 설치", "번역을 중지한 후 모델을 설치하세요.")
+            return
+        if self._hym_install_busy:
+            return
+        if not messagebox.askyesno(
+            "Hy-MT2 무료 모델 설치",
+            "Hy-MT2 Q4_K_M 모델(약 1.1GB)과 공식 llama.cpp Windows CPU 실행기를 "
+            "사용자 PC에 다운로드합니다.\n"
+            "외부 서버로 음성을 전송하지 않으며, 처음 설치할 때만 인터넷이 필요합니다.\n\n"
+            "지금 다운로드할까요?",
+        ):
+            return
+        self._hym_install_busy = True
+        self._hym_install_cancel.clear()
+        self.hym_install_btn.config(state="disabled")
+        self.status.set("Hy-MT2 설치를 시작합니다...")
+
+        def install_task():
+            try:
+                from streaming_pipeline import setup_hym
+                setup_hym(
+                    HYM_DIR,
+                    progress=lambda msg: self.events.put(("hym_progress", msg)),
+                    custom_path=self.settings.get("hym_server"),
+                    cancel=self._hym_install_cancel,
+                )
+                self.events.put(("hym_installed", None))
+            except Exception as exc:
+                self.events.put(("hym_install_error", str(exc)))
+
+        threading.Thread(
+            target=install_task, name="HyMT2Installer", daemon=True
+        ).start()
+
     def configure_google_key(self):
         if self.running:
             messagebox.showinfo("Google API 키", "번역을 중지한 후 API 키를 설정하세요.")
@@ -844,10 +912,27 @@ class App:
             self.scan_audio(auto_start=True)
             return
         engine = self.engine.get()
-        if engine not in ("argos", "google"):
+        if engine not in ("argos", "google", "hymt"):
             messagebox.showerror("번역 엔진", "번역 엔진을 선택하세요.")
             return
         api_key = None
+        if engine == "hymt":
+            if self._hym_install_busy:
+                messagebox.showinfo("Hy-MT2", "모델 설치가 끝나면 번역을 시작하세요.")
+                return
+            try:
+                from streaming_pipeline import hym_ready
+                installed = hym_ready(HYM_DIR, self.settings.get("hym_server"))
+            except Exception as exc:
+                messagebox.showerror("Hy-MT2", f"설치 상태 확인 실패: {exc}")
+                return
+            if not installed:
+                messagebox.showinfo(
+                    "Hy-MT2 설치 필요",
+                    "Hy-MT2 모델 또는 llama.cpp 실행기가 설치되지 않았습니다. "
+                    "'Hy-MT2 설치'를 눌러 설치한 후 다시 시작하세요.",
+                )
+                return
         if engine == "google":
             try:
                 api_key = read_google_key()
@@ -886,11 +971,12 @@ class App:
         self.status.set("중지 요청됨. 진행 중인 AI 처리가 끝나면 종료됩니다.")
 
     def capture_and_translate(self, selected, language, model_name, seconds, engine, api_key):
+        hy_backend = None
         try:
             from faster_whisper import WhisperModel
             if engine == "argos":
                 import argostranslate.translate
-            from streaming_pipeline import run_stream
+            from streaming_pipeline import run_stream, HyMT2Backend
 
             local_model = APP_DIR / "models" / model_name
             path = str(local_model) if all(
@@ -907,10 +993,20 @@ class App:
             if self.stop_signal.is_set():
                 return
             translators = {}
+            if engine == "hymt":
+                hy_backend = HyMT2Backend(
+                    HYM_DIR, server_path=self.settings.get("hym_server")
+                )
+                hy_backend.start(
+                    self.stop_signal,
+                    lambda msg: self.events.put(("status", msg)),
+                )
 
             def translate_cached(original, lang):
                 if engine == "google":
                     return google_translate_text(original, lang, api_key)
+                if engine == "hymt":
+                    return hy_backend.translate(original, lang)
                 if lang not in translators:
                     translator = argostranslate.translate.get_translation_from_codes(lang, "ko")
                     if translator is None:
@@ -925,7 +1021,7 @@ class App:
                 language=language,
                 model=self._cached_model,
                 translate=translate_cached,
-                quality_mode=(engine == "argos"),
+                quality_mode=(engine in ("argos", "hymt")),
                 emit_status=lambda status: self.events.put(
                     ("error" if status.startswith("오디오 캡처 오류:") else "status", status)
                 ),
@@ -938,6 +1034,11 @@ class App:
         except Exception as exc:
             self.events.put(("error", str(exc)))
         finally:
+            if hy_backend is not None:
+                try:
+                    hy_backend.stop()
+                except Exception:
+                    pass
             self.events.put(("ended", None))
 
     def check_update(self):
@@ -986,6 +1087,18 @@ class App:
                     self.status.set(data)
                     if data.startswith("오디오 연결 완료:"):
                         self.capture_started_at = time.monotonic()
+                elif kind == "hym_progress":
+                    self.status.set(data)
+                elif kind == "hym_installed":
+                    self._hym_install_busy = False
+                    self.hym_install_btn.config(state="normal")
+                    self.status.set("Hy-MT2 설치 완료 · Hy-MT2 엔진을 선택하고 번역을 시작하세요.")
+                    messagebox.showinfo("Hy-MT2 설치", "설치 완료. Hy-MT2를 선택하고 번역을 시작할 수 있습니다.")
+                elif kind == "hym_install_error":
+                    self._hym_install_busy = False
+                    self.hym_install_btn.config(state="normal")
+                    self.status.set("Hy-MT2 설치 실패 · 기존 엔진은 계속 사용할 수 있습니다.")
+                    messagebox.showerror("Hy-MT2 설치", data)
                 elif kind == "scan_completed":
                     self._audio_scan_busy = False
                     auto = self._auto_start_pending
@@ -1071,6 +1184,10 @@ class App:
 
     def close(self):
         """Exit from the dedicated button or title-bar X; stop capture first."""
+        if self._hym_install_busy and not messagebox.askyesno(
+            "Hy-MT2 설치 중", "모델 다운로드를 중단하고 프로그램을 종료할까요?"
+        ):
+            return
         if self.running and not messagebox.askyesno(
             "LiveTranslator 종료",
             "번역이 진행 중입니다. 번역을 중지하고 프로그램을 종료할까요?",
@@ -1078,6 +1195,7 @@ class App:
             return
         if self.running:
             self.stop_signal.set()
+        self._hym_install_cancel.set()
         try:
             self.persist()
         except (OSError, ValueError):
