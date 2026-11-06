@@ -122,7 +122,7 @@ class QualityTests(unittest.TestCase):
         app = (Path(__file__).resolve().parent.parent / "app_core.py").read_text(encoding="utf-8")
         self.assertIn('os.environ["ARGOS_BEAM_SIZE"] = "4"', app)
         self.assertIn('os.environ["ARGOS_COMPUTE_TYPE"] = "float32"', app)
-        self.assertIn('quality_mode=(engine == "argos")', app)
+        self.assertIn('quality_mode=(engine in ("argos", "hymt"))', app)
         self.assertIn('if engine == "google":', app)
         self.assertNotIn('mode="balanced"', app)
 
