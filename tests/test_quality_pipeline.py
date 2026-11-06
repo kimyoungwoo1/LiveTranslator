@@ -340,6 +340,65 @@ class QualityTests(unittest.TestCase):
         results = buf.add("flow. New order next.", "en", 2)
         self.assertIn("own cash flow", " ".join(text for text, _ in results))
 
+    def test_trailing_short_questions_are_not_translated_out_of_context(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        self.assertEqual(
+            buf.add("Hello? Junko Mori speaking? How?", "en", 0),
+            [("Hello? Junko Mori speaking?", "en")],
+        )
+        self.assertEqual(
+            buf.add("How can I help you? Hi, Junko.", "en", 3),
+            [("How can I help you? Hi, Junko.", "en")],
+        )
+
+    def test_bare_how_restarts_to_complete_question(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        self.assertEqual(buf.add("How?", "en", 0), [])
+        self.assertEqual(
+            buf.add("How can I help you?", "en", 3),
+            [("How can I help you?", "en")],
+        )
+
+    def test_it_works_both_and_lone_ways_join(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        self.assertEqual(
+            buf.add("We appreciate your business. It works both.", "en", 0),
+            [("We appreciate your business.", "en")],
+        )
+        self.assertEqual(
+            buf.add("ways.", "en", 3),
+            [("It works both ways.", "en")],
+        )
+
+    def test_let_me_see_what_i_can_and_lone_do_join(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        self.assertEqual(
+            buf.add("Let me see what I can.", "en", 0), [],
+        )
+        self.assertEqual(
+            buf.add("do.", "en", 3),
+            [("Let me see what I can do.", "en")],
+        )
+
+    def test_happy_to_help_and_lone_you_join(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        self.assertEqual(
+            buf.add("Sure. We are happy to help.", "en", 0),
+            [("Sure.", "en")],
+        )
+        self.assertEqual(
+            buf.add("you. Great.", "en", 3),
+            [("We are happy to help you. Great.", "en")],
+        )
+
+    def test_new_speaker_does_not_get_folded_into_open_question(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        self.assertEqual(buf.add("How?", "en", 0), [])
+        self.assertEqual(
+            buf.add("Everything arrived safely.", "en", 4),
+            [("How?", "en"), ("Everything arrived safely.", "en")],
+        )
+
     def test_silence_flush_preserves_incomplete_sentence(self):
         buf = self.pipeline.SentenceBuffer(3)
         buf.add("partial phrase", "en", 0)
