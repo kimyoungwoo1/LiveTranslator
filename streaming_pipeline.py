@@ -841,6 +841,47 @@ class HyMT2Backend:
         except (KeyError, TypeError, IndexError, ValueError):
             raise RuntimeError("Hy-MT2 응답 형식을 해석할 수 없습니다.") from None
 
+    def summarize_korean(self, text):
+        """Summarize one bounded excerpt of already-translated Korean locally.
+
+        This is a separate operation from translation; no transcript is sent
+        to external APIs. A small translation-focused model may be imperfect.
+        """
+        if not text.strip():
+            raise ValueError("요약할 한국어 발화가 없습니다.")
+        if not self.process or self.process.poll() is not None:
+            raise RuntimeError("로컬 Hy-MT2 요약 서버가 실행 중이지 않습니다.")
+        prompt = (
+            "다음은 회의나 통화 중 수집한 한국어 자막입니다. "
+            "자막에 실제로 등장한 사실만 간결한 한국어로 요약하세요. "
+            "주제, 핵심 내용, 결정 사항, 후속 조치를 구분하되, "
+            "없는 항목은 '언급 없음'이라고 쓰세요. 숫자, 기한, 인명은 정확히 유지하세요. "
+            "원문에 없는 내용을 추측하거나 만들어 내지 마세요. "
+            "설명 없이 요약 결과만 작성하세요.\n\n"
+            + text[:1500]
+        )
+        payload = {
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0, "max_tokens": 440, "stream": False,
+        }
+        request = urlrequest.Request(
+            f"http://127.0.0.1:{self.port}/v1/chat/completions",
+            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urlrequest.urlopen(request, timeout=100) as response:
+                answer = json.loads(response.read(1_000_000))
+            summary = answer["choices"][0]["message"]["content"].strip()
+            if not summary:
+                raise RuntimeError("AI가 빈 요약을 반환했습니다.")
+            return summary
+        except (urlerror.URLError, TimeoutError) as exc:
+            raise RuntimeError(f"Hy-MT2 요약 요청 실패: {exc}") from None
+        except (KeyError, TypeError, IndexError, ValueError):
+            raise RuntimeError("AI 요약 응답 형식을 해석할 수 없습니다.") from None
+
     def stop(self):
         if self.process is not None:
             if self.process.poll() is None:
