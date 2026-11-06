@@ -24,7 +24,7 @@ jobs:
       - name: Syntax check
         run: |
           python -m py_compile app_core.py updater.py streaming_pipeline.py launcher.py
-          python -m py_compile updates/v0.6.25/app_core.py updates/v0.6.25/streaming_pipeline.py
+          python -m py_compile updates/v0.6.26/app_core.py updates/v0.6.26/streaming_pipeline.py
           python -m unittest discover -s tests -p "test_patch_syntax.py" -v
-      - name: Regression - negative-clause stitching, source-only Hy-MT2 prompt and audio pipelines
+      - name: Regression - bounded ASR sentence buffering, no word fabrication and existing translation
         run: python -m unittest discover -s tests -v
