@@ -35,6 +35,7 @@ class SentenceBuffer:
         self.first_at = None
         self.count = 0
         self.last_fragment = ""
+        self.awaiting_continuation = False
 
     def flush(self):
         if not self.text.strip():
@@ -43,6 +44,27 @@ class SentenceBuffer:
         item = (self.text.strip(), self.language)
         self.reset()
         return item
+
+    # Speech decoders often insert a period even when a thought is unfinished.
+    # Only defer a few high-confidence continuation phrases; most sentences
+    # are translated immediately, preserving real-time subtitle responsiveness.
+    _OPEN_END = re.compile(
+        r"\\b(?:let me see|it works|i'll keep an eye out|"
+        r"(?:a|an|the|and|or|but|because|if|to|of|for|with|"
+        r"from|our|your|their|after|before))\\s*[.!?]?\\s*$",
+        re.IGNORECASE,
+    )
+
+    @classmethod
+    def _likely_unfinished(cls, fragment, language):
+        return language == "en" and bool(cls._OPEN_END.search(fragment))
+
+    @staticmethod
+    def _likely_continuation(fragment):
+        # Lowercase at the start is a useful but intentionally conservative
+        # signal that ASR cut an ongoing sentence, not a new speaker's turn.
+        text = fragment.lstrip(" \\"'“”")
+        return bool(text) and text[0].islower()
 
     def add(self, fragment, language, now):
         fragment = " ".join(fragment.strip().split())
@@ -59,6 +81,13 @@ class SentenceBuffer:
             previous = self.flush()
             if previous:
                 results.append(previous)
+        elif self.awaiting_continuation and not self._likely_continuation(fragment):
+            # A clearly new utterance must not be attached to an unfinished
+            # guess from another turn.
+            previous = self.flush()
+            if previous:
+                results.append(previous)
+        continuing = self.awaiting_continuation
         # Avoid exact adjacent duplicate chunks due to Whisper hallucinations.
         if self.text and fragment == self.last_fragment:
             return results
@@ -71,10 +100,21 @@ class SentenceBuffer:
         self.text += fragment
         self.last_fragment = fragment
         self.count += 1
-        if ((not unfinished and self.TERMINAL.search(self.text)) or
+        should_hold = (
+            not unfinished
+            and self._likely_unfinished(self.text, language)
+            and self.count < self.max_fragments
+            and len(self.text) < self.max_chars
+            and now - self.first_at < self.max_age
+        )
+        # A held phrase gets exactly one next chunk to finish its thought,
+        # even if ASR took longer than max_age. It never waits indefinitely:
+        # the next utterance or silent flush closes the buffered sentence.
+        self.awaiting_continuation = should_hold
+        if ((not unfinished and not should_hold and self.TERMINAL.search(self.text)) or
                 len(self.text) >= self.max_chars or
                 self.count >= self.max_fragments or
-                now - self.first_at >= self.max_age):
+                (now - self.first_at >= self.max_age and not continuing)):
             completed = self.flush()
             if completed:
                 results.append(completed)
