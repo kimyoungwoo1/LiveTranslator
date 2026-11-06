@@ -417,6 +417,24 @@ class HyMT2Tests(unittest.TestCase):
             "양방향으로 잘 작동해요.",
         )
 
+    def test_business_request_roles_and_proper_name_are_preserved(self):
+        fix = self.mod._repair_clear_korean_idiom_mistranslations
+        hint = self.mod._hym_current_text_guidance
+        self.assertEqual(
+            fix("I need a favor. A favor?",
+                "도와줄 일이 있어요. 도와주시는 거예요?", "en"),
+            "부탁 하나 드리고 싶어요. 부탁이라고요?",
+        )
+        self.assertEqual(
+            fix("From Red Band.", "빨간 밴드에서 전화했어요.", "en"),
+            "레드 밴드에서 전화했어요.",
+        )
+        self.assertEqual(
+            fix("The red band is broken.", "빨간 밴드가 고장 났어요.", "en"),
+            "빨간 밴드가 고장 났어요.",
+        )
+        self.assertIn("request for help", hint("I need a favor.", "en"))
+
     def test_unsupported_language_does_not_send_requests(self):
         backend = self.mod.HyMT2Backend("unused")
         with self.assertRaisesRegex(RuntimeError, "영어 또는 일본어"):
