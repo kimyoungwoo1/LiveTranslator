@@ -1,15 +1,15 @@
 {
-  "version": "0.6.20",
+  "version": "0.6.21",
   "min_bootstrap": "0.6.0",
-  "notes": "TXT recording usability: every translation run has its own dated/session/provider folder with separate timestamped 원문.txt and 한국어_번역.txt files; preserve existing daily TXT history. '기록 폴더 열기' opens Windows Explorer directly. Can be applied using the in-app code updater; no new EXE or AI models.",
+  "notes": "Hy-MT2/Argos speech quality follow-up: hold only visibly incomplete English phrase tails such as 'Let me see.' + 'what I can do' or 'It works.' + 'both ways' and translate completed earlier sentences immediately; conservatively collapse adjacent 3+ word Whisper restarts such as 'we can make a We can make an exception'. Preserve short real repetitions, English source audit, all installed models and per-session TXT recordings. No EXE download. Live accuracy and subtitle delay must be checked against the same source audio.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.20/app_core.py",
+      "path": "updates/v0.6.21/app_core.py",
       "git_sha1": "d29918787f53724e108eeb84bc4b50ff20afdabd"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.20/streaming_pipeline.py",
-      "git_sha1": "53d79dbf815024143ceb6062390c21be532143f9"
+      "path": "updates/v0.6.21/streaming_pipeline.py",
+      "git_sha1": "148cd75fbe3736df75fdeaf472bcb4770b820737"
     }
   }
 }
