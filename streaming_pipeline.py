@@ -321,6 +321,14 @@ HYM_FILE = "Hy-MT2-1.8B-Q4_K_M.gguf"
 HYM_HF_API = "https://huggingface.co/api/models/" + HYM_REPO + "/tree/main"
 HYM_MODEL_URL = "https://huggingface.co/" + HYM_REPO + "/resolve/main/" + HYM_FILE
 HYM_GH_API = "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest"
+# SHA-256 published in the official GitHub release attestation for b12122.
+# A fixed hash allows verified install when the latest-release API omits a digest.
+HYM_PINNED_WIN_CPU = (
+    "https://github.com/ggml-org/llama.cpp/releases/download/b12122/"
+    "llama-b12122-bin-win-cpu-x64.zip",
+    "d1a53a4be7588d3b16512bbde27173fa9d77e44c430760390e621cce7256eb27",
+    "llama-b12122-bin-win-cpu-x64.zip",
+)
 
 
 def _hym_json(url, timeout=20):
@@ -453,19 +461,31 @@ def _hym_model_metadata():
 
 
 def _hym_runtime_asset():
-    release = _hym_json(HYM_GH_API, timeout=20)
-    assets = release.get("assets") or []
-    choices = [
-        a for a in assets
-        if re.fullmatch(r"llama-.*-bin-win-cpu-x64\.zip", a.get("name", ""), re.I)
-    ]
-    if not choices:
-        raise RuntimeError("공식 llama.cpp Windows x64 CPU 실행기 ZIP을 찾지 못했습니다.")
-    asset = choices[0]
-    digest = asset.get("digest") or ""
-    if not digest.startswith("sha256:"):
-        raise RuntimeError("공식 실행기 다운로드에 SHA-256 정보가 없어 안전하게 설치할 수 없습니다.")
-    return asset["browser_download_url"], digest[7:], asset["name"]
+    """Use official GitHub SHA-256, or a pinned, publicly attested CPU release."""
+    try:
+        release = _hym_json(HYM_GH_API, timeout=12)
+        assets = release.get("assets") or []
+        choices = [
+            asset for asset in assets
+            if re.fullmatch(
+                r"llama-.*-bin-win-cpu-x64\\.zip",
+                asset.get("name", ""), re.I
+            )
+        ]
+        if choices:
+            asset = choices[0]
+            digest = asset.get("digest") or ""
+            url = asset.get("browser_download_url") or ""
+            if (re.fullmatch(r"sha256:[0-9a-f]{64}", digest)
+                    and url.startswith(
+                        "https://github.com/ggml-org/llama.cpp/releases/download/"
+                    )):
+                return url, digest[7:], asset["name"]
+    except (OSError, RuntimeError, ValueError, KeyError, TypeError):
+        pass
+    # Never accept an unverified or mismatching binary: use a pinned official
+    # release instead, and still verify its bytes before executing anything.
+    return HYM_PINNED_WIN_CPU
 
 
 def find_hym_server(folder, custom_path=None):
