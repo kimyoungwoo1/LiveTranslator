@@ -78,10 +78,19 @@ class SentenceBuffer:
             return previous, incoming
         end = re.search(r"(?<![A-Za-z])([A-Za-z]{3,5})$", previous)
         start = re.match(r"([a-z]{6,})\b", incoming)
-        if (end and start and start.group(1).casefold().startswith(
-                end.group(1).casefold()) and
-                len(start.group(1)) - len(end.group(1)) >= 3):
-            return previous[:end.start(1)].rstrip(), incoming
+        if end and start:
+            short = end.group(1).casefold()
+            word = start.group(1).casefold()
+            # ASR may spell a clipped syllable slightly differently:
+            # 'prop' then 'problem'. Require the two initial letters and
+            # allow at most one substitution; never invent a new word.
+            mismatch = sum(left != right for left, right in zip(short, word))
+            close_prefix = (
+                word.startswith(short) or
+                (len(short) >= 4 and word[:2] == short[:2] and mismatch <= 1)
+            )
+            if close_prefix and len(word) - len(short) >= 3:
+                return previous[:end.start(1)].rstrip(), incoming
         return previous, incoming
 
     def _release_completed_prefix(self, now):
