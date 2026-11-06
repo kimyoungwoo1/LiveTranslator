@@ -360,6 +360,15 @@ class QualityTests(unittest.TestCase):
         self.assertEqual(source.count("def run_stream("), 1)
         self.assertEqual(source.count("def resolve_capture_device("), 1)
 
+    def test_overlap_retains_context_without_repeating_new_audio(self):
+        self.assertAlmostEqual(self.pipeline.QUALITY_OVERLAP_SECONDS, 0.9)
+        # Overlap must be context for ASR only; the capture queue still
+        # receives exactly one joined audio block, not two recordings.
+        source = (Path(__file__).resolve().parent.parent / "streaming_pipeline.py").read_text(encoding="utf-8")
+        self.assertIn("block, overlap_tail = add_audio_context(", source)
+        self.assertIn("item = (time.monotonic(), block, rate)", source)
+        self.assertIn("strip_transcript_overlap(", source)
+
     def test_quality_waits_for_pauses_after_minimum_context(self):
         ready = self.pipeline.should_finalize_audio
         rate = 16000
