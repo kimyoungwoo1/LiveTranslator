@@ -1,15 +1,15 @@
 {
-  "version": "0.6.15",
+  "version": "0.6.16",
   "min_bootstrap": "0.6.0",
-  "notes": "Improve transcript completeness in continuous speech: separate Whisper recognition from Argos/Google translation on an independent bounded text worker so slow translation no longer blocks the next speech recognition block. Report captured-audio skips versus delayed-translation skips separately. This does not restore audio already dropped or guarantee accuracy improvements if Whisper itself mishears the source.",
+  "notes": "Experimental third translation provider: Hy-MT2 1.8B Q4_K_M local CPU offline. Argos and Google options remain. Hy-MT2 install is explicit, downloads official ~1.1GB GGUF and verified llama.cpp Windows CPU binary once into LocalAppData (not EXE), then uses temporary localhost-only llama-server during translation. On Windows live CPU performance and startup are not yet verified. If install or startup fails, keep using Argos or Google.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.15/app_core.py",
-      "git_sha1": "f71042758013fde50a6a8640cc2848534830c8aa"
+      "path": "updates/v0.6.16/app_core.py",
+      "git_sha1": "2a10e6c12d8806719da808ffa0bb1f4a5985cf50"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.15/streaming_pipeline.py",
-      "git_sha1": "e1b3f9b22262a8e3c20d5efb5b78ac86aee7757d"
+      "path": "updates/v0.6.16/streaming_pipeline.py",
+      "git_sha1": "d5f3806333ee8fe87d225833d4345da7819272f4"
     }
   }
 }
