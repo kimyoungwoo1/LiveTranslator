@@ -1,15 +1,15 @@
 {
-  "version": "0.6.34",
+  "version": "0.6.35",
   "min_bootstrap": "0.6.0",
-  "notes": "Improve offline Hy-MT2 meeting summary accuracy: explicit distinction between request, proposal, provisional acceptance and confirmed decision; emphasize original payment terms versus proposed extensions, new orders, delivery and real follow-up actions. Pass short verbatim factual evidence selected from each transcript chunk without inventing context; preserve long-meeting chunk coverage. Improve Korean business idiom rendering for standalone 'It works both ways', customer appreciation and 'keep an eye out' while leaving technical bidirectional statements unchanged. Same paired transcript/AI-summary TXT files and local-only inference. Windows syntax and 128 regression tests passed; actual AI output accuracy requires real-meeting retest.",
+  "notes": "Carefully improve the translation stage after comparing actual English meeting source with LiveTranslator output. When English says invoice, translate as Korean 청구서 rather than 영수증 with correct grammatical particles; clarify extension of payment terms as a deadline extension in local Hy-MT2 guidance. These changes are gated by current source speech and do not guess missing Whisper words. Existing user-selected Whisper base/small model, realtime audio processing, offline AI summary, transcripts and UI remain unchanged. Windows syntax and 129 regression tests passed; Whisper misrecognitions remain dependent on audio and selected ASR model.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.34/app_core.py",
+      "path": "updates/v0.6.35/app_core.py",
       "git_sha1": "e7ae9104e891aca0298363f3aa4c03a31da5c152"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.34/streaming_pipeline.py",
-      "git_sha1": "fd2131f53580c99bdb837d48ae7f1a20a51c97a2"
+      "path": "updates/v0.6.35/streaming_pipeline.py",
+      "git_sha1": "112590a7d7f48618a9360943a3532745704755c6"
     }
   }
 }
