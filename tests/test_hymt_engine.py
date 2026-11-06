@@ -185,6 +185,48 @@ class HyMT2Tests(unittest.TestCase):
         self.assertNotIn("PREVIOUS", prompt)
         self.assertNotIn("CURRENT (translate this only)", prompt)
 
+    def test_business_idiom_guidance_uses_only_current_utterance(self):
+        pick = self.mod._hym_current_text_guidance
+        current = "And we appreciate your business, Andrea. It works both ways."
+        guidance = pick(current, "en")
+        self.assertIn("mutual benefit", guidance)
+        self.assertNotIn("payment terms", guidance)
+        self.assertEqual(pick("This program works both ways.", "en"), "")
+        self.assertEqual(pick("この問題を解決できます。", "ja"), "")
+        self.assertIn(
+            "customer's patronage",
+            pick("We appreciate your business, Andrea.", "en")
+        )
+        self.assertIn("watch for", pick("I'll keep an eye out for it.", "en"))
+
+    def test_business_hint_does_not_include_prior_speech_or_modify_source(self):
+        backend = self.mod.HyMT2Backend("unused")
+        backend.port = 14811
+        backend.process = mock.MagicMock()
+        backend.process.poll.return_value = None
+        response = mock.MagicMock()
+        response.read.return_value = json.dumps({
+            "choices": [{"message": {"content": "서로에게 도움이 됩니다."}}]
+        }).encode("utf-8")
+        manager = mock.MagicMock()
+        manager.__enter__.return_value = response
+        prompts = []
+
+        def record(req, **kwargs):
+            prompts.append(json.loads(req.data)["messages"][0]["content"])
+            return manager
+
+        prior = "Please extend the payment terms to 60 days."
+        present = "We appreciate your business, Andrea. It works both ways."
+        with mock.patch.object(self.mod.urlrequest, "urlopen", side_effect=record):
+            backend.translate(prior, "en")
+            backend.translate(present, "en")
+        self.assertEqual(len(prompts), 2)
+        self.assertTrue(prompts[1].endswith(present))
+        self.assertIn("mutual benefit", prompts[1])
+        self.assertNotIn(prior, prompts[1])
+        self.assertNotIn("PREVIOUS (context only)", prompts[1])
+
     def test_never_sends_previous_utterance_after_sequential_translations(self):
         """Regression: v0.6.23 repeated old Korean lines instead of translating CURRENT."""
         backend = self.mod.HyMT2Backend("unused")
