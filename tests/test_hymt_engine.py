@@ -401,6 +401,22 @@ class HyMT2Tests(unittest.TestCase):
             "영수증입니다.",
         )
 
+    def test_spoken_business_idiom_variants_from_live_capture(self):
+        fix = self.mod._repair_clear_korean_idiom_mistranslations
+        self.assertEqual(
+            fix("It works both ways.", "양방향으로 잘 작동해요.", "en"),
+            "서로에게 도움이 되는 일이에요.",
+        )
+        self.assertEqual(
+            fix("And I'll email you the new order. Thanks. I'll keep an eye out for it.",
+                "새 주문 내용을 이메일로 보낼게요. 고마워요. 그걸 기대하며 지켜볼게요.", "en"),
+            "새 주문 내용을 이메일로 보낼게요. 고마워요. 메일이 오면 확인할게요.",
+        )
+        self.assertEqual(
+            fix("This machine works both ways.", "양방향으로 잘 작동해요.", "en"),
+            "양방향으로 잘 작동해요.",
+        )
+
     def test_unsupported_language_does_not_send_requests(self):
         backend = self.mod.HyMT2Backend("unused")
         with self.assertRaisesRegex(RuntimeError, "영어 또는 일본어"):
