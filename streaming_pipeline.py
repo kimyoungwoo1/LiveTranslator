@@ -399,6 +399,40 @@ def _hym_download(url, dest, expected_hash, max_bytes, progress, cancel=None):
 
 
 def _hym_model_metadata():
+    """Get the publisher's SHA-256 for Xet *and* legacy LFS files.
+
+    Xet models may have no 'lfs' field in the Hub tree listing. The Hub
+    advertises x-linked-etag/x-linked-size in the first (302) HEAD response.
+    Prevent redirects so that CDN headers cannot hide that metadata.
+    """
+    class StopRedirect(urlrequest.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            return None
+
+    headers = None
+    try:
+        opener = urlrequest.build_opener(StopRedirect())
+        req = urlrequest.Request(HYM_MODEL_URL, method="HEAD", headers={
+            "User-Agent": "LiveTranslator-HyMT2/0.6"
+        })
+        try:
+            response = opener.open(req, timeout=20)
+        except urlerror.HTTPError as exc:
+            if exc.code not in (301, 302, 303, 307, 308):
+                raise
+            response = exc
+        with response:
+            headers = response.headers
+        sha = (headers.get("X-Linked-Etag") or headers.get("Etag") or "")
+        sha = sha.strip().strip('"').lower()
+        size = int(headers.get("X-Linked-Size") or
+                   headers.get("Content-Length") or "0")
+        if re.fullmatch(r"[0-9a-f]{64}", sha) and 500_000_000 <= size <= 2_500_000_000:
+            return sha, size
+    except (OSError, ValueError, TypeError):
+        pass
+
+    # Fallback for older LFS repositories and proxies that strip HEAD headers.
     entries = _hym_json(HYM_HF_API, timeout=20)
     if not isinstance(entries, list):
         raise RuntimeError("공식 모델 파일 목록 응답이 올바르지 않습니다.")
@@ -406,12 +440,16 @@ def _hym_model_metadata():
     if not entry:
         raise RuntimeError("공식 모델 저장소에서 Q4_K_M 파일을 찾지 못했습니다.")
     lfs = entry.get("lfs") or {}
-    digest = lfs.get("oid")
+    digest = lfs.get("oid") or entry.get("oid")
     if isinstance(digest, str) and digest.startswith("sha256:"):
         digest = digest[7:]
+    size = int(entry.get("size") or lfs.get("size") or 0)
     if not re.fullmatch(r"[0-9a-f]{64}", digest or ""):
-        raise RuntimeError("모델 SHA-256 정보를 검증할 수 없습니다.")
-    return digest, int(entry.get("size") or lfs.get("size") or 0)
+        raise RuntimeError(
+            "Hugging Face가 모델 SHA-256 정보를 반환하지 않습니다. "
+            "모델 페이지 연결 또는 회사 네트워크의 HEAD 요청 차단 여부를 확인하세요."
+        )
+    return digest, size
 
 
 def _hym_runtime_asset():
