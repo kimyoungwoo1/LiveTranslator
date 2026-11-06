@@ -10,11 +10,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class PatchSyntaxTests(unittest.TestCase):
     def test_every_current_update_source_compiles(self):
-        for p in (ROOT / "app_core.py", ROOT / "streaming_pipeline.py",
-                  ROOT / "updates/v0.6.19/app_core.py",
-                  ROOT / "updates/v0.6.19/streaming_pipeline.py"):
+        manifest = json.loads((ROOT / "updates/stable.json").read_text(encoding="utf-8"))
+        source_paths = [ROOT / "app_core.py", ROOT / "streaming_pipeline.py"]
+        source_paths.extend(ROOT / entry["path"] for entry in manifest["files"].values())
+        for p in source_paths:
             with self.subTest(path=str(p)):
                 compile(p.read_bytes(), str(p), "exec")
+        self.assertEqual(set(manifest["files"]), {"app_core.py", "streaming_pipeline.py"})
 
     def test_english_terminal_regex_imports_and_handles_punctuation(self):
         path = ROOT / "streaming_pipeline.py"
@@ -30,7 +32,7 @@ class PatchSyntaxTests(unittest.TestCase):
         self.assertTrue(regex.search("The new order arrived."))
         self.assertTrue(regex.search("Is the payment due?"))
         self.assertFalse(regex.search("We have another new order"))
-        self.assertFalse(regex.search("new...".removesuffix("...")))
+        self.assertFalse(regex.search("another new order"))
 
 
 if __name__ == "__main__":
