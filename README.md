@@ -235,3 +235,17 @@ This quality patch keeps the existing **Hy-MT2 / Argos / Google** provider choic
 Compare the *recognized English*, particularly `extend it to 60 days`, `Can you send me a quick email confirmation`, and `new order`. Check that words around chunk boundaries are no longer clipped or duplicated, and that the **음성 누락** counter does not rise. Compare Korean translation separately. More accurate English input can improve Hy-MT2 output, but **v0.6.18 does not guarantee a WER improvement** on every recording. CPU load may increase somewhat due to overlapping inference.
 
 Apply via **업데이트 확인 → v0.6.18 → restart**. Existing EXE and local Hy-MT2 model/runtime are reused.
+
+## v0.6.20 — session-based TXT records and open records folder
+
+Enable **원문·번역 TXT 분리 저장** to save each translation run separately. The first recognized/transcribed segment of a session creates a new directory under `%LOCALAPPDATA%\\LiveTranslator\\transcripts` with a timestamp, translation provider and source language in its name, for example:
+
+    2026-11-06_12-31-25_Hy-MT2_en/
+      원문.txt
+      한국어_번역.txt
+
+The original text is saved on recognition even if translation is slower. Korean is saved as it arrives. Both files have timestamps, a UTF-8 BOM for Windows Notepad compatibility, and a short session header. Starting translation again creates a new directory, and names are collision-safe even if starts are in the same second. Enabling recording mid-session begins saving from that point.
+
+The **기록 폴더 열기** button launches the folder in Windows Explorer, rather than showing its path in a popup. Old daily files such as `2026-11-05.txt` remain unchanged, and deleting/clearing on-screen subtitles does not delete saved TXT records.
+
+This is an in-app Python code update, with no EXE/model redownload.
