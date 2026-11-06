@@ -264,7 +264,7 @@ class App:
         self.capture_started_at = None
         self.last_original_at = None
         self.session_started_at = None
-        self.session_record_dir = None
+        self.session_record_path = None
         self.session_engine = None
         self.session_language = None
         self.build_ui()
@@ -451,7 +451,7 @@ class App:
         ttk.Checkbutton(actions, text="항상 위에 자막", variable=self.overlay_enabled,
                         command=self.toggle_overlay,
                         style="LTCheck.TCheckbutton").pack(side="right")
-        ttk.Checkbutton(actions, text="원문·번역 TXT 분리 저장", variable=self.save_enabled,
+        ttk.Checkbutton(actions, text="원문·한국어 한 파일에 저장", variable=self.save_enabled,
                         style="LTCheck.TCheckbutton").pack(side="right", padx=(0, 16))
 
         status_panel = ttk.Frame(outer, style="LTCard.TFrame", padding=(15, 10))
@@ -550,7 +550,7 @@ class App:
             messagebox.showerror("기록 폴더 열기 실패", str(exc))
 
     def _create_transcript_session(self):
-        """Create separate source and Korean records for each translation run."""
+        """One dated TXT file per translation session, never a daily append log."""
         TRANSCRIPTS.mkdir(parents=True, exist_ok=True)
         started = self.session_started_at or datetime.datetime.now()
         engine = {"argos": "Argos", "hymt": "Hy-MT2", "google": "Google"}.get(
@@ -558,34 +558,42 @@ class App:
         )
         lang = self.session_language if self.session_language in ("en", "ja", "ko", "auto") else "auto"
         base_name = f"{started:%Y-%m-%d_%H-%M-%S}_{engine}_{lang}"
-        for index in range(1000):
-            suffix = f"_{index:02d}" if index else ""
-            destination = TRANSCRIPTS / (base_name + suffix)
-            try:
-                destination.mkdir(exist_ok=False)
-                break
-            except FileExistsError:
-                continue
-        else:
-            raise OSError("번역 세션 저장 폴더를 생성할 수 없습니다.")
         header = (
             f"LiveTranslator · {started:%Y-%m-%d %H:%M:%S}\n"
-            f"번역 엔진: {engine} | 원본 언어: {lang}\n\n"
+            f"번역 엔진: {engine} | 원본 언어: {lang}\n"
+            + "=" * 48 + "\n\n"
         )
-        (destination / "원문.txt").write_text(header, encoding="utf-8-sig")
-        (destination / "한국어_번역.txt").write_text(header, encoding="utf-8-sig")
-        self.session_record_dir = destination
+        for index in range(1000):
+            suffix = f"_{index:02d}" if index else ""
+            path = TRANSCRIPTS / (base_name + suffix + ".txt")
+            try:
+                # x is atomic: never overwrite records from a prior session.
+                with path.open("x", encoding="utf-8-sig") as handle:
+                    handle.write(header)
+                self.session_record_path = path
+                return
+            except FileExistsError:
+                continue
+        raise OSError("번역 세션 기록 파일을 생성할 수 없습니다.")
 
-    def save_transcript(self, kind, text):
-        """Append to one of two per-session files; preserve old daily files."""
-        if not self.save_enabled.get() or not text.strip():
+    def save_transcript(self, original, translated):
+        """Keep each translated English/Japanese sentence next to its Korean."""
+        if not self.save_enabled.get():
+            return
+        if not isinstance(original, str) or not isinstance(translated, str):
+            return
+        if not original.strip() and not translated.strip():
             return
         try:
-            if self.session_record_dir is None:
+            if self.session_record_path is None:
                 self._create_transcript_session()
-            filename = "원문.txt" if kind == "original" else "한국어_번역.txt"
-            with (self.session_record_dir / filename).open("a", encoding="utf-8") as handle:
-                handle.write(f"[{datetime.datetime.now():%H:%M:%S}] {text.strip()}\n\n")
+            with self.session_record_path.open("a", encoding="utf-8") as handle:
+                handle.write(
+                    f"[{datetime.datetime.now():%H:%M:%S}]\n"
+                    f"[원문]\n{original.strip()}\n"
+                    f"[한국어 번역]\n{translated.strip()}\n"
+                    + "-" * 48 + "\n\n"
+                )
         except OSError as exc:
             self.save_enabled.set(False)
             self.status.set(f"TXT 기록 저장 실패 · 저장 옵션 해제됨: {exc}")
@@ -1057,7 +1065,7 @@ class App:
                 return
         self.persist()
         self.session_started_at = datetime.datetime.now()
-        self.session_record_dir = None
+        self.session_record_path = None
         self.session_engine = engine
         self.session_language = self.language.get()
         self.stop_signal = threading.Event()
@@ -1270,13 +1278,12 @@ class App:
                     self.last_original_at = time.monotonic()
                     self.original.insert("end", data + "\n")
                     self.original.see("end")
-                    self.save_transcript("original", data)
                 elif kind == "result":
                     original, translated = data
                     self.translated.insert("end", translated + "\n")
                     self.translated.see("end")
                     self.overlay_text.config(text=translated)
-                    self.save_transcript("translation", translated)
+                    self.save_transcript(original, translated)
                 elif kind == "ended":
                     self.running = False
                     self.set_live_indicator("idle")
