@@ -51,6 +51,9 @@ class SentenceBuffer:
     _OPEN_END = re.compile(
         r"\b(?:let me see|it works|i'll keep an eye out|"
         r"i'm not|i am not|"
+        # Whisper can put a false period between 'some cash' and 'flow
+        # problems'. Hold this narrowly defined noun phrase, not all 'cash'.
+        r"(?:some|our|your|their)\s+cash|"
         r"(?:a|an|the|and|or|but|because|if|to|of|for|with|"
         r"from|our|your|their|after|before))\s*[.!?]?\s*$",
         re.IGNORECASE,
@@ -189,9 +192,11 @@ class SentenceBuffer:
         bounded = (len(self.text) >= self.max_chars or
                    self.count >= self.max_fragments or
                    (now - self.first_at >= self.max_age and not continuing))
-        if bounded and not is_terminal and language == "en":
-            # Release the previous complete sentences, but keep an
-            # incomplete trailing clause for the next recognized block.
+        if bounded and language == "en" and (
+                not is_terminal or self._likely_unfinished(self.text, language)):
+            # A hard chunk limit must not force out a sentence that ends
+            # with a known incomplete phrase, even if Whisper added a period.
+            # Still release the complete earlier sentences to limit latency.
             complete = self._release_completed_prefix(now)
             if complete:
                 results.append(complete)
