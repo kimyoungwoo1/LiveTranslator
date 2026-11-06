@@ -1,14 +1,14 @@
 {
-  "version": "0.6.36",
+  "version": "0.6.37",
   "min_bootstrap": "0.6.0",
-  "notes": "Whisper small/base first-run model initialization now reports selected model, elapsed time, and that an unseen Hugging Face download/cache check may be underway; model_loaded clears the indicator and actual errors remain visible. Avoid falsely claiming download progress. Also correct additional source-gated Korean business idiom mistranslations ('양방향으로 잘 작동해요' for standalone 'It works both ways', '그걸 기대하며 지켜볼게요' for 'keep an eye out for it') while preserving literal software bidirectional descriptions. No model replacement, EXE or new dependencies. Windows syntax and full regression tests passed.",
+  "notes": "Make LiveTranslator usable without choosing Whisper base/small or a technical recognition interval: the regular UI now shows automatic speech recognition and hides both controls. Migrate prior manual model choice into auto mode by default, selecting stable realtime Whisper base (not dynamically switching model weights mid-call), with existing bounded speech-backlog adaptive beam search. Optional manual tiny/base/small and audio interval override remains inside collapsed advanced settings and persists across restarts. Online/offline source controls, translation engines, paired TXT and AI summary remain unchanged. Windows syntax and all regression tests passed.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.36/app_core.py",
-      "git_sha1": "fe35638f5a56dc5f69e1356f4e519398478a9fe3"
+      "path": "updates/v0.6.37/app_core.py",
+      "git_sha1": "bb8adc741e9cc1c95f11546129ff51ca4f311ac5"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.36/streaming_pipeline.py",
+      "path": "updates/v0.6.37/streaming_pipeline.py",
       "git_sha1": "55c733cc8137119e7cc87728ea8793d38cda6f5b"
     }
   }
