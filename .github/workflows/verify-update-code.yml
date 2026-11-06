@@ -26,5 +26,5 @@ jobs:
           python -m py_compile app_core.py updater.py streaming_pipeline.py launcher.py
           python -m py_compile updates/v0.6.35/app_core.py updates/v0.6.35/streaming_pipeline.py
           python -m unittest discover -s tests -p "test_patch_syntax.py" -v
-      - name: Regression - v0.6.35 payment vocabulary translation
+      - name: Regression - v0.6.35 payment terminology and grammar
         run: python -m unittest discover -s tests -v
