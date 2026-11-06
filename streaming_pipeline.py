@@ -718,6 +718,23 @@ def strip_transcript_overlap(previous, current, language="en", max_words=16):
 
 
 
+
+def choose_asr_beam_size(quality_mode, pending_chunks):
+    """Favor completeness when ASR cannot keep pace with live capture.
+
+    Beam 5 for best recognition with spare CPU; reduce search work only when
+    multiple WHOLE audio chunks are waiting, before queue drops them.
+    """
+    if not quality_mode:
+        return 1
+    if pending_chunks >= 4:
+        return 2
+    if pending_chunks >= 2:
+        return 3
+    return 5
+
+
+
 def should_finalize_audio(sample_count, silence_count, rate, interval_seconds,
                           quality_mode=False):
     """Split natural speech near a pause instead of at a fixed clock boundary.
@@ -935,7 +952,7 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
             segments, metadata = model.transcribe(
                 audio,
                 language=None if language == "auto" else language,
-                beam_size=5 if quality_mode else 1,
+                beam_size=choose_asr_beam_size(quality_mode, pending.qsize()),
                 best_of=1,
                 temperature=0,
                 initial_prompt=prompt,
