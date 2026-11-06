@@ -1,0 +1,48 @@
+name: Check Hy-MT2 official install metadata
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/hymt-install-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify official model and Windows CPU runtime metadata (no download)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import sys
+          from unittest import mock
+          import importlib.util
+          with mock.patch.dict(sys.modules, {
+              "numpy": mock.MagicMock(),
+              "scipy": mock.MagicMock(),
+              "scipy.signal": mock.MagicMock(),
+              "pyaudiowpatch": mock.MagicMock(),
+          }):
+              spec=importlib.util.spec_from_file_location("stream_probe","streaming_pipeline.py")
+              module=importlib.util.module_from_spec(spec)
+              spec.loader.exec_module(module)
+              for name, func in [
+                  ("Hugging Face model SHA-256", module._hym_model_metadata),
+                  ("GitHub Windows x64 CPU ZIP SHA-256", module._hym_runtime_asset)
+              ]:
+                  print(f"CHECKING: {name}",flush=True)
+                  result=func()
+                  if name.startswith("Hugging"):
+                      print("OK: SHA",result[0],"size",result[1],flush=True)
+                  else:
+                      print("OK: ASSET",result[2],"digest",result[1],flush=True)
+          PY
