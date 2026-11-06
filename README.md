@@ -313,3 +313,13 @@ Hy-MT2 keeps the **context-free, current-utterance-only** prompt (v0.6.24 safegu
 Does not fix Whisper hallucinations such as `I'm cool` or `do the Andrea`, and does not supply speaker diarization. Separate real-audio testing is needed for word omissions and model inference quality. All models, session TXT records, existing English/Japanese engines, and EXE remain unchanged.
 
 Windows GitHub Actions run 42171052717 passed Python syntax and the full regression suite before release. Apply via **업데이트 확인 → v0.6.25 → restart**.
+
+## v0.6.26 — preserve unfinished English at bounded speech cuts
+
+From repeated British Council speech tests: some Whisper chunks ended with a clipped fragment such as `So your cashflow prop`, and the next chunk began `problem will be solved...`. The previous sentence assembler could flush the incomplete tail when it hit its character/fragment/age bound, producing two unrelated Korean subtitles.
+
+**Change:** When the bounded quality-mode English buffer has complete prior sentences and an unfinished trailing clause, release the complete prefix for translation immediately and retain only the trailing clause for the following recognition chunk. When that following chunk starts with a clearly longer word closely matching the trailing fragment (including a single letter recognition difference such as `prop` vs the recognized `problem`), drop only the incomplete prefix and retain the full word from the subsequent recognized audio. Keep bounded fallback when no safe sentence boundary exists. Never insert an unrecognized word.
+
+**Scope and limits:** This is a conservative text-boundary repair, not a correction for falsely recognized English (`I'm not sure if I can't do the Andrea`) or for Hy-MT2's literal idiom translations (`It works both ways`). The first short question `How can I help?` followed by a separate `you?` remains ambiguous without extra latency; the patch deliberately does not join arbitrary question/answer turns or assume speakers. A small number of genuine spoken corrections/repetitions could still be normalized when the words closely resemble one another.
+
+Whisper audio buffering, 0.7s overlap, all translation engines, the local Hy-MT2 model and the single TXT-per-session format remain unchanged. Windows GitHub Actions staged regression run **42172506648** passed syntax and the full test suite before release. No EXE or AI model download is needed.
