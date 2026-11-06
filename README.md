@@ -341,3 +341,37 @@ The British Council 15:18–15:20 test transcript revealed a critical split: `..
 **Hy-MT2:** Add short semantic guidance **only when the CURRENT English utterance itself contains a relevant idiom**. Customer appreciation and mutual-benefit expressions receive a business-context hint; `keep an eye out for it` receives an expectation/watchfulness hint. Previous dialogue is **never included** in the model input. Unrelated technical use of `works both ways` does not trigger business guidance. These are hints, not deterministic translation replacements, and require a real local-model listening test to establish any improvement.
 
 **No changes:** Existing 0.7-second waveform overlap, ASR model, audio-device first-start fix, Google/Argos translation, per-session TXT files, installed Hy-MT2 model and EXE. Windows syntax and full unit regression suite passed in staged workflow run 42174336579 before publication.
+
+
+## v0.6.42 — stronger recognition before translation
+
+The normal settings row now has **품질 우선** (default) and **실시간 우선**.
+With advanced recognition set to `auto`, quality uses Whisper `small` on CPU
+INT8 and at least 5 seconds of audio context, preferring a pause before a cut
+(default 5–7 seconds). Realtime retains `base` and the saved interval. Explicit
+advanced model selections remain authoritative in either profile. Settings are
+saved between launches; model weights never change during an active session.
+
+**First quality-mode start may download the small recognition model (about
+460 MB).** A new EXE or Hy-MT2 model is not required. Quality uses more CPU/RAM
+and increases initial caption delay. On slower machines watch the audio/translation
+skip counters; choose realtime if they increase. Wait for the audio-connected
+status before starting a test recording so model initialization does not hide its
+opening words.
+
+Sentence assembly now releases completed sentences before an ellipsis-ended
+ASR fragment and keeps only that unfinished tail. A clearly new utterance does
+not get attached to that tail. It does not insert missing words or restore
+names/negation from a known script.
+
+The translation engine and its current-utterance-only prompt remain unchanged:
+real Hy-MT2 trials of longer role instructions, the upstream default prompt and
+alternative style prompts did not establish consistent improvement. There is no
+new phrase replacement dictionary. See `benchmarks/quality-v0.6.42.md` for the
+measured recognition comparison and its limits. Existing TXT/AI summary files,
+engine selection and saved audio devices remain supported.
+
+Install using **업데이트 확인 → v0.6.42 → restart**, then use **품질 우선** and
+`auto` in advanced recognition settings. Confirm the model-ready/audio-connected
+status before replaying the same recording. This does not claim Google-level
+translation or validate every Windows headset/CPU.

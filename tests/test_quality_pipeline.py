@@ -36,6 +36,26 @@ class QualityTests(unittest.TestCase):
             [("Actually, I also want to place another new order. The same size as last time.", "en")]
         )
 
+    def test_ellipsis_releases_completed_prefix_without_extra_latency(self):
+        buf = self.pipeline.SentenceBuffer(5)
+        self.assertEqual(
+            buf.add("Please send the contract. I am not...", "en", 0),
+            [("Please send the contract.", "en")],
+        )
+        self.assertEqual(
+            buf.add("sure we can accept it.", "en", 6),
+            [("I am not sure we can accept it.", "en")],
+        )
+
+    def test_ellipsis_does_not_merge_a_clearly_new_utterance(self):
+        buf = self.pipeline.SentenceBuffer(5)
+        self.assertEqual(buf.add("We must manage our own...", "en", 0), [])
+        self.assertEqual(
+            buf.add("I promise this is temporary.", "en", 6),
+            [("We must manage our own", "en"),
+             ("I promise this is temporary.", "en")],
+        )
+
     def test_repeated_audio_prefix_is_not_repeated_in_transcript(self):
         dedup = self.pipeline.strip_transcript_overlap
         self.assertEqual(

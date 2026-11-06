@@ -36,3 +36,22 @@ Models are cached by Hugging Face; repeated runs do not deliberately redownload 
 - chrF from 16 original samples is not definitive. Review the resulting translations manually and repeat on the actual Windows CPU before changing the default engine.
 
 License attribution and redistribution duties must be respected if either model is later packaged for others.
+
+
+## Recognition quality profiles (v0.6.42)
+
+`compare_recognition_profiles.py` replays one local recording through the actual
+production pause/overlap/dedup/sentence helpers with base/3 seconds and small/5
+seconds. It does not open microphones or transmit the recording; missing speech
+models may be downloaded. Supply a plain English reference and an output path:
+
+    python benchmarks/compare_recognition_profiles.py --audio recording.wav --reference reference.txt --output comparison.json
+
+WAV input must be mono 16-bit PCM at 16000 Hz. Other formats use PyAV through
+faster-whisper. Optional `--model-root` uses existing `base` and `small` folders.
+Optional `--start-marker` and `--end-marker` exclude a recording's intro/outro
+from scoring only, after recognition; they never supply missing words to ASR.
+The reference must cover the same scoring region. JSON includes actual raw
+recognition and assembled translation inputs. Keep recordings/references/results
+out of git. The replay does not model live queue overflow or concurrent Hy-MT2
+CPU contention; inspect those counters in the real Windows app as well.
