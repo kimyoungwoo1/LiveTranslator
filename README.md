@@ -281,3 +281,15 @@ Text is appended when a translation finishes, ensuring each English/Korean pair 
 Prior daily TXT files and the two-file session directories from v0.6.20–v0.6.21 are **left untouched**. The **기록 폴더 열기** button continues to open the directory in Windows Explorer.
 
 Update via **업데이트 확인 → v0.6.22 → restart**. No new executable or model download required.
+
+## v0.6.23 — Hy-MT2 dialogue context for more natural Korean
+
+Recent British Council transcript tests showed that some English recognition was accurate but Hy-MT2 translated dialogue idioms too literally, e.g. `It works both ways.` → `양방향으로 작동합니다` and `I'll keep an eye out for it.` → `주의를 기울이겠습니다`.
+
+**Translation-only change:** Hy-MT2 now sees up to two previously translated original-language utterances (a maximum of 320 characters), clearly labeled **PREVIOUS (context only)**, to disambiguate the **CURRENT** sentence. Its instruction explicitly says to translate **only CURRENT**, interpret conversational/business idioms by their intended meaning, preserve numbers and proper names, and never invent unrecognized words. Context is reset when the source language changes or the engine stops, and is not shared with Google or Argos. This does not transmit content externally: it is sent only to the existing local 127.0.0.1 llama-server.
+
+The change is designed to improve naturalness; **it is not yet evidence that Hy-MT2 actually improved on live audio**. Context may cost extra CPU time per phrase, and it cannot recover any omitted/incorrect Whisper speech such as the missing call introduction and email confirmation question.
+
+Importantly, v0.6.22's combined TXT contains only **completed source/translation pairs**. To diagnose true audio/ASR loss, compare the on-screen source transcript with the known source recording and the live **음성 누락** / **번역 누락** counters. Missing TXT lines alone do not prove that Whisper missed the sound.
+
+Update via **업데이트 확인 → v0.6.23 → restart**. No EXE or model redownload. All other translation and audio settings remain the same.
