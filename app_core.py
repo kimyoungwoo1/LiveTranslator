@@ -424,25 +424,44 @@ class App:
         self.mode_description = tk.StringVar()
         self._update_mode_ui()
 
-        source = ttk.Frame(outer, style="LTCard.TFrame", padding=(15, 11))
+        source = tk.Frame(outer, bg=colors["card"], padx=15, pady=11)
         source.pack(fill="x", pady=(0, 9))
-        ttk.Label(source, text="오디오 장치 및 음성 인식", style="LTCard.TLabel",
-                  font=("Malgun Gothic", 11, "bold")).pack(anchor="w", pady=(0, 8))
-        row = ttk.Frame(source, style="LTCard.TFrame")
-        row.pack(fill="x", pady=(0, 9))
-        ttk.Label(row, text="선택 장치", style="LTCardMuted.TLabel",
-                  width=10).pack(side="left")
-        self.device_combo = ttk.Combobox(row, textvariable=self.device,
-                                          state="readonly", style="LT.TCombobox")
-        self.device_combo.pack(side="left", fill="x", expand=True, padx=(0, 7))
+        heading_row = tk.Frame(source, bg=colors["card"])
+        heading_row.pack(fill="x", pady=(0, 8))
+        tk.Label(heading_row, text="◖  입력 소스", bg=colors["card"],
+                 fg=colors["text"], font=("Malgun Gothic", 11, "bold")
+                 ).pack(side="left", padx=(0, 12))
+        tk.Label(heading_row, text="번역할 오디오 장치를 선택하세요",
+                 bg=colors["card"], fg=colors["muted"],
+                 font=("Malgun Gothic", 9)).pack(side="left")
+        self.source_kind_label = tk.Label(
+            heading_row, text="", bg=colors["card"], fg=colors["blue"],
+            font=("Malgun Gothic", 9, "bold"))
+        self.source_kind_label.pack(side="right")
+        row = tk.Frame(source, bg=colors["card"])
+        row.pack(fill="x", pady=(0, 12))
+        self.source_tabs = {}
+        for key, label in (("output", "◖  PC 출력"), ("input", "♩  마이크 입력")):
+            tab = tk.Label(row, text=label, cursor="hand2",
+                           padx=15, pady=8, font=("Malgun Gothic", 9, "bold"),
+                           bd=1, relief="solid")
+            tab.pack(side="left", padx=(0, 5))
+            tab.bind("<Button-1>", lambda event, selected=key:
+                     self.select_audio_mode(selected))
+            self.source_tabs[key] = tab
+        self.device_combo = ttk.Combobox(
+            row, textvariable=self.device, state="readonly", style="LT.TCombobox")
+        self.device_combo.pack(side="left", fill="x", expand=True, padx=(10, 7))
         self.device_combo.bind("<<ComboboxSelected>>", self.remember_selected_device)
-        ttk.Button(row, text="새로고침", command=self.refresh,
+        ttk.Button(row, text="↻ 새로고침", command=self.refresh,
                    style="LT.TButton").pack(side="left", padx=(0, 6))
-        ttk.Button(row, text="소리 찾기", command=self.scan_audio,
+        ttk.Button(row, text="⌕ 소리 찾기", command=self.scan_audio,
                    style="LT.TButton").pack(side="left")
-
-        row = ttk.Frame(source, style="LTCard.TFrame")
+        ttk.Separator(source, orient="horizontal").pack(fill="x", pady=(0, 10))
+        row = tk.Frame(source, bg=colors["card"])
         row.pack(fill="x")
+        tk.Label(row, text="⚙  번역 설정", font=("Malgun Gothic", 10, "bold"),
+                 bg=colors["card"], fg=colors["text"]).pack(side="left", padx=(0, 25))
         ttk.Label(row, text="원본 언어", style="LTCardMuted.TLabel").pack(side="left", padx=(0, 7))
         ttk.Combobox(row, values=["en", "ja", "ko", "auto"], state="readonly",
                      textvariable=self.language, width=8,
@@ -456,6 +475,7 @@ class App:
                      state="readonly", textvariable=self.seconds, width=6,
                      style="LT.TCombobox").pack(side="left")
         ttk.Label(row, text="초", style="LTCardMuted.TLabel").pack(side="left", padx=(5, 0))
+        self._update_mode_ui()
 
         engine_card = ttk.Frame(outer, style="LTCard.TFrame", padding=(15, 11))
         engine_card.pack(fill="x", pady=(0, 9))
@@ -674,16 +694,40 @@ class App:
             self.overlay.withdraw()
 
     def _update_mode_ui(self):
-        if not hasattr(self, "mode_description"):
-            return
         offline = self.mode.get() == "input"
-        self.mode_description.set(
-            "오프라인 회의: 노트북/외장 마이크로 발표자의 음성을 번역합니다. "
-            "마이크를 발표자 가까이에 두세요."
-            if offline else
-            "온라인 회의: Teams, Zoom, 브라우저 등 PC에서 재생되는 소리를 번역합니다. "
-            "이어폰/스피커 출력 장치를 선택하세요."
-        )
+        if hasattr(self, "mode_description"):
+            self.mode_description.set(
+                "오프라인 회의: 마이크로 발표자의 소리를 번역합니다."
+                if offline else "온라인 회의: PC에서 재생되는 소리를 번역합니다."
+            )
+        if hasattr(self, "source_kind_label"):
+            self.source_kind_label.config(
+                text="마이크 입력" if offline else "PC 출력 / Loopback")
+        for key, widgets in getattr(self, "mode_tiles", {}).items():
+            shell, inner, line, symbol, heading, mark, desc = widgets
+            selected = key == self.mode.get()
+            shell.config(bg="#368dff" if selected else "#3b4b66")
+            background = "#1a3a70" if selected else "#212e44"
+            for widget in (inner, line, symbol, heading, mark, desc):
+                widget.config(bg=background)
+            mark.config(text="●" if selected else "○",
+                        fg="#80c1ff" if selected else "#a0aec3")
+            heading.config(fg="#ffffff" if selected else "#e1eaf7")
+        for key, widget in getattr(self, "source_tabs", {}).items():
+            selected = key == self.mode.get()
+            widget.config(bg="#2779ed" if selected else "#212e44",
+                          fg="#ffffff" if selected else "#b9c9e0",
+                          highlightbackground="#2779ed" if selected else "#3b4b66",
+                          highlightthickness=1)
+
+    def select_audio_mode(self, new_mode):
+        if new_mode == self.mode.get():
+            return
+        if self.running or self._audio_scan_busy:
+            messagebox.showinfo("입력 모드", "번역과 소리 찾기를 중지한 후 모드를 바꿔주세요.")
+            return
+        self.mode.set(new_mode)
+        self.switch_audio_mode()
 
     def switch_audio_mode(self):
         """Change source type, never capture microphone and loopback together."""
