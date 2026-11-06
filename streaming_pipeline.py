@@ -753,6 +753,8 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
                        "서로에게 도움이 되는 일이에요", fixed)
         fixed = re.sub(r"양방향으로 작동(?:해요|합니다|해|한다)",
                        "서로에게 도움이 되는 일이에요", fixed)
+        fixed = re.sub(r"양방향으로 (?:잘 )?작동(?:해요|합니다|해|한다)",
+                       "서로에게 도움이 되는 일이에요", fixed)
     if re.search(r"\bkeep an eye out for it\b", source, re.IGNORECASE):
         replacement = ("메일이 오면 확인할게요"
                        if re.search(r"\b(?:email|e-mail|mail)\b", source, re.IGNORECASE)
@@ -760,6 +762,8 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
         fixed = re.sub(r"(?:그걸|그것을|그것|그를)\s*(?:잘\s*)?지켜보겠습니다",
                        replacement, fixed)
         fixed = re.sub(r"그걸 기대하며 주의를 기울이겠습니다",
+                       replacement, fixed)
+        fixed = re.sub(r"(?:그걸|그것을|그것)\s*(?:기대하며\s*)?(?:잘\s*)?지켜볼게요",
                        replacement, fixed)
     return fixed
 
