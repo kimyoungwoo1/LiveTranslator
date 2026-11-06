@@ -731,7 +731,13 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
             and not re.search(r"\b(?:receipt|receipts)\b", source, re.IGNORECASE)):
         # English invoice means a request for payment. Only fix this clear
         # single-term mismatch; leave receipts from other source words intact.
-        fixed = re.sub(r"영수증", "청구서", fixed)
+        fixed = re.sub(
+            r"영수증(과|을|은|이|도|에|의|로|와|를)?",
+            lambda m: "청구서" + {
+                "과": "와", "을": "를", "은": "는", "이": "가", "로": "로",
+            }.get(m.group(1), m.group(1) or ""),
+            fixed,
+        )
     if re.search(r"\bappreciate your business\b", source, re.IGNORECASE):
         fixed = re.sub(r"(?:여러분의 |당신의 )?고객이 되어\s*주셔서",
                        "거래해 주셔서", fixed)
