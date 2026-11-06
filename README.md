@@ -205,3 +205,15 @@ The model files and runtime are stored under the Windows LocalAppData LiveTransl
 **Practical limits:** Hy-MT2 requires more RAM and CPU time than Argos, and may lag while Whisper runs. The GitHub CPU benchmark (mean translation-only latency ~1.225 s on a 4-core Linux runner) does NOT predict real Windows performance. No automatic fallback to Google/Argos occurs during private translations. If it fails to start, inspect **hy_mt2/server.log** and use Argos in the meantime.
 
 **Distribution:** Hy-MT2 model license Apache 2.0; check attribution and third-party notices before distributing bundled weights or binaries. Our app does not bundle either; each user explicitly downloads from the original sources.
+
+## Hy-MT2 installer failure hotfix (v0.6.17)
+
+If v0.6.16 reported only **Hy-MT2 설치 실패**, update the existing executable to **v0.6.17** using the app's **업데이트 확인** button. Restart, then retry **Hy-MT2 설치**. There is no need to reinstall Whisper or download another LiveTranslator EXE.
+
+The installer now retrieves Hugging Face Xet GGUF file SHA-256 metadata from a HEAD request without following the redirect; older LFS tree metadata remains a fallback. Official llama.cpp Windows CPU ZIP verification also has a hash-pinned fallback when the GitHub latest-release API lacks a digest. No security check is disabled; model and runtime bytes must match the official published hash before being used.
+
+If installation still fails, click **설치 오류 확인** in the translation-engine settings. The latest stage and actual error are also saved under `%LOCALAPPDATA%\\LiveTranslator\\hy_mt2\\install_error.log`. This file can be shared for debugging (review for private paths before sharing). Partial `.part` files remain so the download can resume safely. The existing Argos and Google providers are unaffected.
+
+Because access to Hugging Face / GitHub depends on the user's network, this compatibility patch cannot guarantee a successful download on every Windows machine. In particular, corporate TLS proxies or endpoint antivirus may block the official artifacts; the error log should make that visible.
+
+Official upstream references: https://huggingface.co/tencent/Hy-MT2-1.8B-GGUF and https://github.com/ggml-org/llama.cpp/releases . The pinned fallback CPU ZIP digest is taken from an official GitHub release attestation (b12122).
