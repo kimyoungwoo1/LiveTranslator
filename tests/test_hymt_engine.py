@@ -163,63 +163,66 @@ class HyMT2Tests(unittest.TestCase):
         self.assertTrue(body["messages"][0]["content"].endswith("60 days."))
         self.assertFalse(body["stream"])
 
-    def test_context_is_bounded_and_previous_dialogue_not_translated(self):
+    def test_never_sends_previous_utterance_after_sequential_translations(self):
+        """Regression: v0.6.23 repeated old Korean lines instead of translating CURRENT."""
         backend = self.mod.HyMT2Backend("unused")
         backend.port = 14811
         backend.process = mock.MagicMock()
         backend.process.poll.return_value = None
         response = mock.MagicMock()
         response.read.return_value = json.dumps({
-            "choices": [{"message": {"content": "상호 도움이 되는 관계입니다."}}]
+            "choices": [{"message": {"content": "결제 기한을 60일로 연장해 주세요."}}]
         }).encode("utf-8")
         manager = mock.MagicMock()
         manager.__enter__.return_value = response
-        requests = []
+        prompts = []
 
         def record(req, **kwargs):
-            requests.append(json.loads(req.data)["messages"][0]["content"])
+            prompts.append(json.loads(req.data)["messages"][0]["content"])
             return manager
 
+        lines = (
+            "I'm calling about the invoice and payment terms.",
+            "Extend the payment terms to 60 days.",
+            "I'm not sure if I can do that, Andrea.",
+            "Yes, I think we can make an exception this time.",
+            "Sure, no problem. We're happy to help you.",
+            "I'll keep an eye out for it.",
+        )
         with mock.patch.object(self.mod.urlrequest, "urlopen", side_effect=record):
-            backend.translate("And we appreciate your business, Andrea.", "en")
-            backend.translate("It works both ways.", "en")
-            backend.translate("I'll keep an eye out for it.", "en")
+            for utterance in lines:
+                backend.translate(utterance, "en")
+        self.assertEqual(len(prompts), len(lines))
+        for index, utterance in enumerate(lines):
+            with self.subTest(index=index):
+                self.assertTrue(prompts[index].endswith(utterance))
+                self.assertNotIn("PREVIOUS", prompts[index])
+                self.assertNotIn("CURRENT (translate", prompts[index])
+                for other_index, other in enumerate(lines):
+                    if index != other_index:
+                        self.assertNotIn(other, prompts[index])
+        self.assertFalse(hasattr(backend, "_source_context"))
 
-        self.assertNotIn("PREVIOUS (context only):", requests[0])
-        self.assertIn("CURRENT (translate this only):", requests[0])
-        self.assertIn("PREVIOUS (context only):", requests[1])
-        self.assertIn("And we appreciate your business, Andrea.", requests[1])
-        self.assertTrue(requests[1].endswith("CURRENT (translate this only):\nIt works both ways."))
-        self.assertTrue(requests[2].endswith("CURRENT (translate this only):\nI'll keep an eye out for it."))
-        self.assertIn("never translate or repeat PREVIOUS", requests[2])
-        self.assertEqual(len(backend._source_context), 2)
-
-    def test_context_is_not_carried_across_languages_or_sessions(self):
+    def test_switching_languages_does_not_share_older_text(self):
         backend = self.mod.HyMT2Backend("unused")
         backend.port = 14811
         backend.process = mock.MagicMock()
-        backend.process.poll.return_value = 0
-        # Simulate a finished Japanese translation in the same engine object.
-        backend._source_context = ["Thank you for your business."]
-        backend._source_context_lang = "en"
+        backend.process.poll.return_value = None
         response = mock.MagicMock()
         response.read.return_value = json.dumps({
-            "choices": [{"message": {"content": "どうもありがとうございます"}}]
+            "choices": [{"message": {"content": "ありがとうございます"}}]
         }).encode("utf-8")
         manager = mock.MagicMock()
         manager.__enter__.return_value = response
-        backend.process.poll.return_value = None
         with mock.patch.object(self.mod.urlrequest, "urlopen", return_value=manager) as opened:
+            backend.translate("Thank you for your business.", "en")
             backend.translate("ありがとうございます。", "ja")
-        sent = json.loads(opened.call_args.args[0].data)["messages"][0]["content"]
-        self.assertNotIn("Thank you for your business.", sent)
-        self.assertEqual(backend._source_context_lang, "ja")
-        self.assertEqual(backend._source_context, ["ありがとうございます。"])
+        japanese_prompt = json.loads(opened.call_args.args[0].data)["messages"][0]["content"]
+        self.assertNotIn("Thank you for your business.", japanese_prompt)
+        self.assertTrue(japanese_prompt.endswith("ありがとうございます。"))
         backend.stop()
-        self.assertEqual(backend._source_context, [])
-        self.assertIsNone(backend._source_context_lang)
 
-    def test_translation_failure_does_not_pollute_following_context(self):
+    def test_failed_utterance_is_not_passed_to_next_request(self):
         backend = self.mod.HyMT2Backend("unused")
         backend.port = 14811
         backend.process = mock.MagicMock()
@@ -230,8 +233,15 @@ class HyMT2Tests(unittest.TestCase):
         manager.__enter__.return_value = response
         with mock.patch.object(self.mod.urlrequest, "urlopen", return_value=manager):
             with self.assertRaisesRegex(RuntimeError, "비어"):
-                backend.translate("Not recognized.", "en")
-        self.assertEqual(backend._source_context, [])
+                backend.translate("Unrecognized prior phrase.", "en")
+        response.read.return_value = json.dumps({
+            "choices": [{"message": {"content": "예외를 허용할 수 있습니다."}}]
+        }).encode("utf-8")
+        with mock.patch.object(self.mod.urlrequest, "urlopen", return_value=manager) as opened:
+            backend.translate("We can make an exception this time.", "en")
+        next_prompt = json.loads(opened.call_args.args[0].data)["messages"][0]["content"]
+        self.assertNotIn("Unrecognized prior phrase.", next_prompt)
+        self.assertTrue(next_prompt.endswith("We can make an exception this time."))
 
     def test_unsupported_language_does_not_send_requests(self):
         backend = self.mod.HyMT2Backend("unused")
