@@ -64,6 +64,27 @@ class HyMT2Tests(unittest.TestCase):
         self.assertEqual(result, (digest, 1130000000))
         self.assertEqual(opener.open.call_args.args[0].get_method(), "HEAD")
 
+    def test_hugging_face_xet_redirect_302_contains_verified_metadata(self):
+        # Hugging Face Xet serves metadata on the *redirect* response; an
+        # automatic redirect to the CDN would lose these headers.
+        from urllib.error import HTTPError
+        digest = "c" * 64
+        headers = {
+            "X-Linked-Etag": '"' + digest + '"',
+            "X-Linked-Size": "1130000000",
+        }
+        redirected = HTTPError(
+            self.mod.HYM_MODEL_URL, 302, "Found", headers, None
+        )
+        opener = mock.MagicMock()
+        opener.open.side_effect = redirected
+        with mock.patch.object(
+            self.mod.urlrequest, "build_opener", return_value=opener
+        ), mock.patch.object(self.mod, "_hym_json",
+                            side_effect=AssertionError("No tree request")):
+            result = self.mod._hym_model_metadata()
+        self.assertEqual(result, (digest, 1130000000))
+
     def test_windows_cpu_asset_sha256_from_official_release(self):
         asset = {
             "name": "llama-b12122-bin-win-cpu-x64.zip",
