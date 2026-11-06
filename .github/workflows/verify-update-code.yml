@@ -19,6 +19,6 @@ jobs:
       - name: Syntax check
         run: |
           python -m py_compile app_core.py updater.py streaming_pipeline.py launcher.py
-          python -m py_compile updates/v0.6.17/app_core.py updates/v0.6.17/streaming_pipeline.py
+          python -m py_compile updates/v0.6.18/app_core.py updates/v0.6.18/streaming_pipeline.py
       - name: Test update integrity, audio discovery and translation contracts
         run: python -m unittest discover -s tests -v
