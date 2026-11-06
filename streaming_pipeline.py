@@ -67,6 +67,46 @@ class SentenceBuffer:
         text = fragment.lstrip(" \"'“”")
         return bool(text) and text[0].islower()
 
+    @staticmethod
+    def _carry_incomplete_word(previous, incoming, language):
+        """Join only a clearly truncated terminal prefix to the next word.
+
+        Do not infer a missing word: the complete word must appear verbatim
+        in the next recognized block, e.g. 'cashflow prop' + 'problem will...'.
+        """
+        if language != "en" or not previous or not incoming:
+            return previous, incoming
+        end = re.search(r"(?<![A-Za-z])([A-Za-z]{3,5})$", previous)
+        start = re.match(r"([a-z]{6,})\b", incoming)
+        if (end and start and start.group(1).casefold().startswith(
+                end.group(1).casefold()) and
+                len(start.group(1)) - len(end.group(1)) >= 3):
+            return previous[:end.start(1)].rstrip(), incoming
+        return previous, incoming
+
+    def _release_completed_prefix(self, now):
+        """Emit coherent complete sentences but retain a dangling final clause.
+
+        A length/age bound must not translate '... cashflow prop' while
+        'problem will be solved' is still in the next capture.
+        """
+        boundaries = list(re.finditer(r"[.!?]\s+(?=[A-Z])", self.text))
+        if not boundaries:
+            return None
+        # Prefer the latest sentence boundary that leaves a nonempty tail.
+        boundary = boundaries[-1]
+        complete = self.text[:boundary.start() + 1].strip()
+        pending = self.text[boundary.end():].strip()
+        if not complete or not pending:
+            return None
+        language = self.language
+        self.text = pending
+        self.first_at = now
+        self.count = 1
+        self.last_fragment = pending
+        self.awaiting_continuation = self._likely_unfinished(pending, language)
+        return complete, language
+
     def add(self, fragment, language, now):
         fragment = " ".join(fragment.strip().split())
         if not fragment:
@@ -100,8 +140,13 @@ class SentenceBuffer:
                 # Whisper put a false full stop at the chunk boundary.
                 # Restore the whole phrase before it reaches Hy-MT2.
                 self.text = re.sub(r"\.\s*$", "", self.text)
-            joiner = "" if language in ("ja", "zh") else " "
-            self.text += joiner
+            elif language == "en":
+                self.text, fragment = self._carry_incomplete_word(
+                    self.text, fragment, language
+                )
+            if self.text:
+                joiner = "" if language in ("ja", "zh") else " "
+                self.text += joiner
         self.text += fragment
         self.last_fragment = fragment
         self.count += 1
@@ -130,10 +175,19 @@ class SentenceBuffer:
                     self.first_at = now
                     self.count = 1
                     self.last_fragment = pending_tail
-        if ((not unfinished and not should_hold and self.TERMINAL.search(self.text)) or
-                len(self.text) >= self.max_chars or
-                self.count >= self.max_fragments or
-                (now - self.first_at >= self.max_age and not continuing)):
+        is_terminal = bool(not unfinished and not should_hold and
+                           self.TERMINAL.search(self.text))
+        bounded = (len(self.text) >= self.max_chars or
+                   self.count >= self.max_fragments or
+                   (now - self.first_at >= self.max_age and not continuing))
+        if bounded and not is_terminal and language == "en":
+            # Release the previous complete sentences, but keep an
+            # incomplete trailing clause for the next recognized block.
+            complete = self._release_completed_prefix(now)
+            if complete:
+                results.append(complete)
+                return results
+        if is_terminal or bounded:
             completed = self.flush()
             if completed:
                 results.append(completed)
