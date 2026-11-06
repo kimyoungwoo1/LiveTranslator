@@ -303,8 +303,8 @@ class App:
 
     def build_ui(self):
         """Compact dark dashboard using only the bundled Tkinter/ttk runtime."""
-        self.root.geometry("1050x820")
-        self.root.minsize(930, 690)
+        self.root.geometry("1220x920")
+        self.root.minsize(980, 740)
         colors = {
             "bg": "#0c1220",
             "card": "#161f31",
@@ -378,26 +378,50 @@ class App:
                                    padx=14, pady=8, bd=0)
         self.live_label.pack(side="right", pady=(8, 0))
 
-        # Each meeting mode captures exactly one audio source.
-        mode_card = ttk.Frame(outer, style="LTCard.TFrame", padding=(15, 10))
+        # Large, clickable cards are easier to distinguish than plain radios.
+        mode_card = tk.Frame(outer, bg=colors["card"], padx=14, pady=12)
         mode_card.pack(fill="x", pady=(0, 9))
-        ttk.Label(mode_card, text="사용 모드", style="LTCard.TLabel",
-                  font=("Malgun Gothic", 11, "bold")).pack(anchor="w", pady=(0, 6))
-        mode_row = ttk.Frame(mode_card, style="LTCard.TFrame")
-        mode_row.pack(fill="x")
-        ttk.Radiobutton(
-            mode_row, text="🔊 온라인 회의  ·  PC 출력", variable=self.mode,
-            value="output", command=self.switch_audio_mode,
-            style="LTRadio.TRadiobutton"
-        ).pack(side="left", padx=(0, 26))
-        ttk.Radiobutton(
-            mode_row, text="🎤 오프라인 회의  ·  마이크 입력", variable=self.mode,
-            value="input", command=self.switch_audio_mode,
-            style="LTRadio.TRadiobutton"
-        ).pack(side="left")
+        mode_card.grid_columnconfigure(1, weight=1, uniform="mode")
+        mode_card.grid_columnconfigure(2, weight=1, uniform="mode")
+        intro = tk.Frame(mode_card, bg=colors["card"], width=165)
+        intro.grid(row=0, column=0, sticky="nw", padx=(2, 12), pady=(8, 0))
+        intro.grid_propagate(False)
+        tk.Label(intro, text="◉  사용 모드", bg=colors["card"], fg=colors["text"],
+                 font=("Malgun Gothic", 12, "bold")).pack(anchor="w")
+        tk.Label(intro, text="어떤 소리를 번역할까요?", bg=colors["card"],
+                 fg=colors["muted"], font=("Malgun Gothic", 9)).pack(anchor="w", pady=(5, 0))
+        self.mode_tiles = {}
+        for column, key, icon, heading, detail in (
+            (1, "output", "▣", "온라인 회의 · PC 출력 번역",
+             "Teams, Zoom, 영상의 재생 소리"),
+            (2, "input", "♩", "오프라인 회의 · 마이크 번역",
+             "발표자, 회의실 등 주변 음성"),
+        ):
+            shell = tk.Frame(mode_card, bg=colors["border"], padx=2, pady=2, cursor="hand2")
+            shell.grid(row=0, column=column, sticky="nsew",
+                       padx=(0, 9) if column == 1 else (0, 0))
+            inner = tk.Frame(shell, bg=colors["field"], padx=12, pady=11)
+            inner.pack(fill="both", expand=True)
+            line = tk.Frame(inner, bg=colors["field"])
+            line.pack(fill="x")
+            symbol = tk.Label(line, text=icon, bg=colors["field"], fg=colors["text"],
+                              font=("Segoe UI Symbol", 16))
+            symbol.pack(side="left", padx=(0, 8))
+            name = tk.Label(line, text=heading, bg=colors["field"], fg=colors["text"],
+                            font=("Malgun Gothic", 10, "bold"), anchor="w")
+            name.pack(side="left", fill="x", expand=True)
+            mark = tk.Label(line, text="○", bg=colors["field"], fg=colors["muted"],
+                            font=("Segoe UI Symbol", 13))
+            mark.pack(side="right")
+            desc = tk.Label(inner, text=detail, bg=colors["field"],
+                            fg=colors["muted"], font=("Malgun Gothic", 9),
+                            anchor="w")
+            desc.pack(fill="x", pady=(6, 0))
+            self.mode_tiles[key] = (shell, inner, line, symbol, name, mark, desc)
+            for widget in (shell, inner, line, symbol, name, mark, desc):
+                widget.bind("<Button-1>", lambda event, selected=key:
+                            self.select_audio_mode(selected))
         self.mode_description = tk.StringVar()
-        ttk.Label(mode_card, textvariable=self.mode_description,
-                  style="LTCardMuted.TLabel").pack(anchor="w", pady=(7, 0))
         self._update_mode_ui()
 
         source = ttk.Frame(outer, style="LTCard.TFrame", padding=(15, 11))
