@@ -187,3 +187,21 @@ Before v0.6.15, the same worker performed Whisper and potentially slow Argos tra
 **Validation:** run the same recording with English/base/3-second/Argos, and observe skip counters while the dialog plays. If audio skips remain zero but the source has omissions, improving the speech model or using longer bounded context may be the appropriate next step. If audio skips rise, the CPU cannot keep pace; model and recognition beam-size tradeoffs still matter. The revised pipeline might increase CPU contention; it does not guarantee a lower WER or professional subtitle quality.
 
 Use **업데이트 확인 > v0.6.15** on an updater-enabled client. No new EXE, models, or Python packages are needed.
+
+## Hy-MT2 offline translation (optional, v0.6.16)
+
+**Argos and Google Cloud remain available.** The third selectable engine is Hy-MT2 1.8B Q4_K_M. It translates recognized English/Japanese text to Korean entirely on the local PC, using a temporary 127.0.0.1 llama.cpp CPU server. Whisper still recognizes the audio locally.
+
+**Setup in the app:**
+
+1. Use an update-capable v0.6+ LiveTranslator.exe. Click **업데이트 확인**, install **v0.6.16**, and restart. Do not download the old 800MB EXE again.
+2. Click **Hy-MT2 설치** and approve the **one-time** download. Model weights are roughly **1.1GB** plus the official llama.cpp Windows x64 CPU archive (additional disk space and RAM are required). It downloads only on explicit confirmation.
+3. The app verifies the official Hugging Face LFS SHA-256 and the GitHub llama.cpp release asset SHA-256 before installing. Incomplete models are left as resumable .part files. If the official release lacks verifiable digest metadata, the app refuses the runtime download instead of executing it.
+4. Select **Hy-MT2 · 오프라인** and click **번역 시작**. It automatically starts a private local CPU inference server and stops it when the session ends.
+5. **Optional**: if Windows security policy blocks downloading the runtime, obtain the CPU release from https://github.com/ggml-org/llama.cpp/releases, extract it, and select its **llama-server.exe** using **llama.cpp 실행기 선택**. Never select an executable from an untrusted source.
+
+The model files and runtime are stored under the Windows LocalAppData LiveTranslator **hy_mt2** folder. Existing Argos, Whisper models, transcripts, settings and Google API key are untouched. Download requires internet; subsequent Hy-MT2 translation does not. Some company networks may block GitHub/Hugging Face downloads.
+
+**Practical limits:** Hy-MT2 requires more RAM and CPU time than Argos, and may lag while Whisper runs. The GitHub CPU benchmark (mean translation-only latency ~1.225 s on a 4-core Linux runner) does NOT predict real Windows performance. No automatic fallback to Google/Argos occurs during private translations. If it fails to start, inspect **hy_mt2/server.log** and use Argos in the meantime.
+
+**Distribution:** Hy-MT2 model license Apache 2.0; check attribution and third-party notices before distributing bundled weights or binaries. Our app does not bundle either; each user explicitly downloads from the original sources.
