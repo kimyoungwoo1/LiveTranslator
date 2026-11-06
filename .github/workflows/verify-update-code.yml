@@ -24,7 +24,7 @@ jobs:
       - name: Syntax check
         run: |
           python -m py_compile app_core.py updater.py streaming_pipeline.py launcher.py
-          python -m py_compile updates/v0.6.26/app_core.py updates/v0.6.26/streaming_pipeline.py
+          python -m py_compile updates/v0.6.27/app_core.py updates/v0.6.27/streaming_pipeline.py
           python -m unittest discover -s tests -p "test_patch_syntax.py" -v
-      - name: Regression - bounded ASR capture, conservative prefix repairs and translation
+      - name: Regression - direct first-click audio capture and preserved translation pipelines
         run: python -m unittest discover -s tests -v
