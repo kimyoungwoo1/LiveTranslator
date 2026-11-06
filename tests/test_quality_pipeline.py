@@ -139,6 +139,39 @@ class QualityTests(unittest.TestCase):
             [("It works both ways. Thanks again, Junko.", "en")]
         )
 
+    def test_british_council_negation_survives_chunk_boundary(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        first = (
+            "You'd really be helping us out if you could extend it "
+            "to 60 days? I'm not."
+        )
+        self.assertEqual(
+            buf.add(first, "en", 0),
+            [("You'd really be helping us out if you could extend it "
+              "to 60 days?", "en")]
+        )
+        self.assertEqual(
+            buf.add("sure if I can do that, Andrea. We've got regulations at our end.",
+                    "en", 5),
+            [("I'm not sure if I can do that, Andrea. "
+              "We've got regulations at our end.", "en")]
+        )
+
+    def test_british_council_negation_does_not_absorb_new_speaker(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        self.assertEqual(buf.add("I'm not.", "en", 0), [])
+        self.assertEqual(
+            buf.add("Everything is fine with the order.", "en", 4),
+            [("I'm not.", "en"), ("Everything is fine with the order.", "en")]
+        )
+
+    def test_explicit_negative_full_sentence_is_not_held(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        self.assertEqual(
+            buf.add("I'm not sure if we can extend the payment terms.", "en", 0),
+            [("I'm not sure if we can extend the payment terms.", "en")]
+        )
+
     def test_completed_questions_translate_immediately(self):
         buf = self.pipeline.SentenceBuffer(3)
         self.assertEqual(
