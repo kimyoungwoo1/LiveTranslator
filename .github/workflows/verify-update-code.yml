@@ -2,6 +2,13 @@ name: Verify update code (no EXE)
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "app_core.py"
+      - "streaming_pipeline.py"
+      - "tests/**"
+      - "updates/**"
+      - ".github/workflows/verify-update-code.yml"
   push:
     branches: [main]
     paths:
