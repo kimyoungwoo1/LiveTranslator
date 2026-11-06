@@ -370,6 +370,37 @@ class HyMT2Tests(unittest.TestCase):
             "고마워요. 소식 기다릴게요.",
         )
 
+    def test_invoice_and_payment_term_guidance_is_source_gated(self):
+        hint = self.mod._hym_current_text_guidance
+        fix = self.mod._repair_clear_korean_idiom_mistranslations
+        self.assertIn(
+            "청구서",
+            hint("I'm calling about the invoice and the payment terms.", "en"),
+        )
+        self.assertIn(
+            "payment deadline",
+            hint("I need an extension on the payment terms.", "en"),
+        )
+        self.assertEqual(
+            fix("The invoice and payment terms arrived.",
+                "영수증과 결제 조건이 도착했습니다.", "en"),
+            "청구서와 결제 조건이 도착했습니다.",
+        )
+        # A sentence mentioning both should never replace the actual receipt.
+        self.assertEqual(
+            fix("The invoice and the receipt arrived.",
+                "청구서와 영수증이 도착했습니다.", "en"),
+            "청구서와 영수증이 도착했습니다.",
+        )
+        self.assertEqual(
+            fix("This is your receipt.", "영수증입니다.", "en"),
+            "영수증입니다.",
+        )
+        self.assertEqual(
+            fix("The invoice arrived.", "영수증입니다.", "ja"),
+            "영수증입니다.",
+        )
+
     def test_unsupported_language_does_not_send_requests(self):
         backend = self.mod.HyMT2Backend("unused")
         with self.assertRaisesRegex(RuntimeError, "영어 또는 일본어"):
