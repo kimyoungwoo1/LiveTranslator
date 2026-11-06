@@ -837,6 +837,7 @@ class App:
         self._model_check_busy = True
         model_name = self.model.get()
         lang = self.language.get()
+        engine = self.engine.get()
         self.status.set("모델 진단 중 · 새 모델을 다운로드하지 않습니다...")
 
         def job():
@@ -854,6 +855,21 @@ class App:
                         f"Whisper {model_name}: 별도 모델 폴더에는 없음. "
                         "Hugging Face 캐시에 있을 수 있으므로 미설치로 단정할 수 없습니다."
                     )
+                if engine == "hymt":
+                    from streaming_pipeline import hym_ready
+                    if hym_ready(HYM_DIR, self.settings.get("hym_server")):
+                        notes.append("Hy-MT2: GGUF 모델과 llama.cpp 실행기 파일 확인됨. "
+                                     "실제 실행은 번역 시작 시 검증합니다.")
+                    else:
+                        notes.append("Hy-MT2: 모델 또는 실행기 미설치 · "
+                                     "'Hy-MT2 설치'를 눌러 설치하세요.")
+                    self.events.put(("model_report", "\n".join(notes)))
+                    return
+                if engine == "google":
+                    notes.append("Google Cloud: 온라인 번역 모드 · "
+                                 "로컬 번역 모델이 필요하지 않습니다.")
+                    self.events.put(("model_report", "\n".join(notes)))
+                    return
                 import argostranslate.translate
                 if lang == "ko":
                     notes.append("Argos: 원본 언어가 한국어이므로 번역 모델이 필요하지 않습니다.")
