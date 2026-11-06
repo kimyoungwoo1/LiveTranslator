@@ -260,6 +260,46 @@ class QualityTests(unittest.TestCase):
             [("You'd really be helping us if you could extend it to 60 days.", "en")],
         )
 
+    def test_cash_flow_phrase_is_not_translated_as_positive_cash(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        self.assertEqual(
+            buf.add("I know they're usually 30 days, but we're having some cash.",
+                    "en", 0), []
+        )
+        self.assertEqual(
+            buf.add("flow problems. Could you extend it to 60 days?", "en", 4),
+            [("I know they're usually 30 days, but we're having some cash "
+              "flow problems. Could you extend it to 60 days?", "en")]
+        )
+
+    def test_cash_flow_at_hard_buffer_limit_preserves_open_phrase(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        buf.max_chars = 35
+        self.assertEqual(
+            buf.add("Order looks fine. We're having some cash.", "en", 0),
+            [("Order looks fine.", "en")]
+        )
+        self.assertEqual(buf.text, "We're having some cash.")
+        self.assertEqual(
+            buf.add("flow problems.", "en", 3),
+            [("We're having some cash flow problems.", "en")]
+        )
+
+    def test_payment_in_cash_is_not_unnecessarily_held(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        self.assertEqual(
+            buf.add("You can pay in cash.", "en", 0),
+            [("You can pay in cash.", "en")]
+        )
+
+    def test_real_new_utterance_is_not_mistaken_for_cash_flow(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        self.assertEqual(buf.add("We have some cash.", "en", 0), [])
+        self.assertEqual(
+            buf.add("Everything else is ready.", "en", 3),
+            [("We have some cash.", "en"), ("Everything else is ready.", "en")]
+        )
+
     def test_english_fragments_form_one_sentence(self):
         buf = self.pipeline.SentenceBuffer(3)
         self.assertEqual(buf.add("We should", "en", 0), [])
