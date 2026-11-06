@@ -50,6 +50,7 @@ class SentenceBuffer:
     # are translated immediately, preserving real-time subtitle responsiveness.
     _OPEN_END = re.compile(
         r"\b(?:let me see|it works|i'll keep an eye out|"
+        r"i'm not|i am not|"
         r"(?:a|an|the|and|or|but|because|if|to|of|for|with|"
         r"from|our|your|their|after|before))\s*[.!?]?\s*$",
         re.IGNORECASE,
@@ -688,8 +689,10 @@ class HyMT2Backend:
         # the current phrase when both are supplied. Fail closed on context:
         # send only the current recognized utterance, never dialogue history.
         prompt = (
-            f"Translate the following {lang} text into natural Korean. "
-            "Preserve numbers, amounts and proper names faithfully. "
+            f"Translate the following {lang} text into natural, polite Korean "
+            "as spoken in a real conversation. Interpret common conversational "
+            "idioms by their meaning. Preserve negation, questions, numbers, "
+            "amounts and proper names. Do not guess or add missing speech. "
             "Output only the Korean translation without explanation.\n\n" +
             text[:5000]
         )
