@@ -256,7 +256,7 @@ class App:
         self.model = tk.StringVar(value=self.settings.get("model", "base"))
         self.seconds = tk.StringVar(value=str(self.settings.get("seconds", 3)))
         self.save_enabled = tk.BooleanVar(value=self.settings.get("save", False))
-        self.engine = tk.StringVar(value=self.settings.get("engine", "argos"))
+        self.engine = tk.StringVar(value=self.settings.get("engine", "hymt"))
         self.overlay_enabled = tk.BooleanVar(value=False)
         self.status = tk.StringVar(value="장치를 선택하고 번역을 시작하세요.")
         self.audio_meter = tk.DoubleVar(value=0.0)
@@ -303,8 +303,12 @@ class App:
 
     def build_ui(self):
         """Compact dark dashboard using only the bundled Tkinter/ttk runtime."""
-        self.root.geometry("1220x920")
-        self.root.minsize(980, 740)
+        screen_h = max(650, int(self.root.winfo_screenheight()))
+        screen_w = max(980, int(self.root.winfo_screenwidth()))
+        initial_h = max(650, min(1050, screen_h - 105))
+        initial_w = max(980, min(1260, screen_w - 55))
+        self.root.geometry(f"{initial_w}x{initial_h}")
+        self.root.minsize(920, min(700, initial_h))
         colors = {
             "bg": "#0c1220",
             "card": "#161f31",
@@ -379,7 +383,7 @@ class App:
         self.live_label.pack(side="right", pady=(8, 0))
 
         # Large, clickable cards are easier to distinguish than plain radios.
-        mode_card = tk.Frame(outer, bg=colors["card"], padx=14, pady=12)
+        mode_card = tk.Frame(outer, bg=colors["card"], padx=14, pady=8)
         mode_card.pack(fill="x", pady=(0, 9))
         mode_card.grid_columnconfigure(1, weight=1, uniform="mode")
         mode_card.grid_columnconfigure(2, weight=1, uniform="mode")
@@ -399,7 +403,7 @@ class App:
             shell = tk.Frame(mode_card, bg=colors["border"], padx=2, pady=2, cursor="hand2")
             shell.grid(row=0, column=column, sticky="nsew",
                        padx=(0, 9) if column == 1 else (0, 0))
-            inner = tk.Frame(shell, bg=colors["field"], padx=12, pady=11)
+            inner = tk.Frame(shell, bg=colors["field"], padx=12, pady=7)
             inner.pack(fill="both", expand=True)
             line = tk.Frame(inner, bg=colors["field"])
             line.pack(fill="x")
@@ -423,7 +427,7 @@ class App:
         self.mode_description = tk.StringVar()
         self._update_mode_ui()
 
-        source = tk.Frame(outer, bg=colors["card"], padx=15, pady=11)
+        source = tk.Frame(outer, bg=colors["card"], padx=15, pady=8)
         source.pack(fill="x", pady=(0, 9))
         heading_row = tk.Frame(source, bg=colors["card"])
         heading_row.pack(fill="x", pady=(0, 8))
@@ -438,7 +442,7 @@ class App:
             font=("Malgun Gothic", 9, "bold"))
         self.source_kind_label.pack(side="right")
         row = tk.Frame(source, bg=colors["card"])
-        row.pack(fill="x", pady=(0, 12))
+        row.pack(fill="x", pady=(0, 7))
         self.source_tabs = {}
         for key, label in (("output", "◖  PC 출력"), ("input", "♩  마이크 입력")):
             tab = tk.Label(row, text=label, cursor="hand2",
@@ -476,7 +480,7 @@ class App:
         ttk.Label(row, text="초", style="LTCardMuted.TLabel").pack(side="left", padx=(5, 0))
         self._update_mode_ui()
 
-        engine_card = ttk.Frame(outer, style="LTCard.TFrame", padding=(15, 11))
+        engine_card = ttk.Frame(outer, style="LTCard.TFrame", padding=(15, 8))
         engine_card.pack(fill="x", pady=(0, 9))
         row = ttk.Frame(engine_card, style="LTCard.TFrame")
         row.pack(fill="x")
@@ -521,7 +525,7 @@ class App:
         ttk.Checkbutton(actions, text="원문·한국어 한 파일에 저장", variable=self.save_enabled,
                         style="LTCheck.TCheckbutton").pack(side="right", padx=(0, 16))
 
-        status_panel = ttk.Frame(outer, style="LTCard.TFrame", padding=(15, 10))
+        status_panel = ttk.Frame(outer, style="LTCard.TFrame", padding=(15, 7))
         status_panel.pack(fill="x", pady=(0, 9))
         status_heading = ttk.Frame(status_panel, style="LTCard.TFrame")
         status_heading.pack(fill="x", pady=(0, 7))
@@ -549,7 +553,7 @@ class App:
             text_row = ttk.Frame(pane, style="LTCard.TFrame")
             text_row.pack(fill="both", expand=True)
             text_box = tk.Text(
-                text_row, height=4, wrap="word", undo=False,
+                text_row, height=9, wrap="word", undo=False,
                 font=("Malgun Gothic", 11), bg=colors["field"], fg=colors["text"],
                 insertbackground=colors["text"], selectbackground="#315c9c",
                 selectforeground="#ffffff", padx=11, pady=10,
