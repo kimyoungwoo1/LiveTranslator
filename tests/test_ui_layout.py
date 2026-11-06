@@ -55,6 +55,17 @@ class DashboardTests(unittest.TestCase):
         initial = ast.get_source_segment(SRC, app_method("__init__"))
         self.assertIn('self.settings.get("engine", "hymt")', initial)
 
+    def test_model_loading_status_is_not_silent_and_marks_completion(self):
+        worker = ast.get_source_segment(SRC, app_method("capture_and_translate"))
+        ui = ast.get_source_segment(SRC, app_method("consume"))
+        self.assertIn('("model_loading", (model_name, path == model_name))', worker)
+        self.assertIn('("model_loaded", model_name)', worker)
+        self.assertIn('elif kind == "model_loading":', ui)
+        self.assertIn('elif kind == "model_loaded":', ui)
+        self.assertIn('seconds_waiting = int(time.monotonic() - started)', ui)
+        self.assertIn('최초 다운로드', ui)
+        self.assertIn('self._model_loading_started = None', ui)
+
     def test_both_transcript_boxes_and_overlay_are_preserved(self):
         ui = ast.get_source_segment(SRC, app_method("build_ui"))
         self.assertIn('transcript_pane("원문', ui)
