@@ -803,11 +803,15 @@ class App:
         self.status.set("Hy-MT2 설치를 시작합니다...")
 
         def install_task():
+            stage = ["설치 준비"]
+            def on_progress(message):
+                stage[0] = message
+                self.events.put(("hym_progress", message))
             try:
                 from streaming_pipeline import setup_hym
                 setup_hym(
                     HYM_DIR,
-                    progress=lambda msg: self.events.put(("hym_progress", msg)),
+                    progress=on_progress,
                     custom_path=self.settings.get("hym_server"),
                     cancel=self._hym_install_cancel,
                 )
@@ -818,7 +822,7 @@ class App:
                 try:
                     HYM_DIR.mkdir(parents=True, exist_ok=True)
                     (HYM_DIR / "install_error.log").write_text(
-                        f"단계: Hy-MT2 설치\n오류: {detail}\n"
+                        f"단계: {stage[0]}\n오류: {detail}\n"
                         "재시도 시 기존 다운로드 파일은 유지됩니다.\n",
                         encoding="utf-8"
                     )
