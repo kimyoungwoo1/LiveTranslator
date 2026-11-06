@@ -1300,7 +1300,7 @@ class App:
     def start(self):
         if self.running:
             return
-        if self.summary_running:
+        if getattr(self, "summary_running", False):
             messagebox.showinfo(
                 "AI 회의 요약", "이전 회의의 AI 요약이 끝난 뒤 새 번역을 시작해 주세요."
             )
