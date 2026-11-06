@@ -1,14 +1,14 @@
 {
-  "version": "0.6.26",
+  "version": "0.6.27",
   "min_bootstrap": "0.6.0",
-  "notes": "Speech boundary repair for Hy-MT2 and Argos: when a long/aged English chunk contains complete earlier sentences but a clipped tail (e.g. 'cashflow prop'), translate the complete portion promptly, retain the tail for next recognition and conservatively reconcile with a complete recognized next word (e.g. 'problem'). Never invent words. Whisper ASR model and source-only Hy-MT2 translation prompt are unchanged. This does not fix true Whisper misrecognitions or literal business idioms. Windows syntax/full regression tests passed pre-release; no EXE or model download.",
+  "notes": "Fix '오디오 자동 감지 실패' on first Start after update. Clicking 번역 시작 now directly opens the selected/default Windows output and waits for real audio instead of requiring a successful loudness probe. If startup device enumeration was empty, retry refresh internally once. Persist selected device on Start. Optional 소리 찾기 remains manual; no automatic device switches. Whisper, Hy-MT2/Argos/Google and TXT logging unchanged. Windows syntax and full regression tests passed; no EXE/model reinstall.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.26/app_core.py",
-      "git_sha1": "878a26b351e20539fb4d55ec65646868834f0b83"
+      "path": "updates/v0.6.27/app_core.py",
+      "git_sha1": "96229f3102ce4795f90502c98bd3b5097a753241"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.26/streaming_pipeline.py",
+      "path": "updates/v0.6.27/streaming_pipeline.py",
       "git_sha1": "0d2958afa0352d703a04cb8039646de9f6a6eaf1"
     }
   }
