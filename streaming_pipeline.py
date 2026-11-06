@@ -49,9 +49,9 @@ class SentenceBuffer:
     # Only defer a few high-confidence continuation phrases; most sentences
     # are translated immediately, preserving real-time subtitle responsiveness.
     _OPEN_END = re.compile(
-        r"\\b(?:let me see|it works|i'll keep an eye out|"
+        r"\b(?:let me see|it works|i'll keep an eye out|"
         r"(?:a|an|the|and|or|but|because|if|to|of|for|with|"
-        r"from|our|your|their|after|before))\\s*[.!?]?\\s*$",
+        r"from|our|your|their|after|before))\s*[.!?]?\s*$",
         re.IGNORECASE,
     )
 
@@ -63,7 +63,7 @@ class SentenceBuffer:
     def _likely_continuation(fragment):
         # Lowercase at the start is a useful but intentionally conservative
         # signal that ASR cut an ongoing sentence, not a new speaker's turn.
-        text = fragment.lstrip(" \\"'“”")
+        text = fragment.lstrip(" \"'“”")
         return bool(text) and text[0].islower()
 
     def add(self, fragment, language, now):
