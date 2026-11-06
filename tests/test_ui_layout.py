@@ -55,6 +55,23 @@ class DashboardTests(unittest.TestCase):
         initial = ast.get_source_segment(SRC, app_method("__init__"))
         self.assertIn('self.settings.get("engine", "hymt")', initial)
 
+    def test_automatic_speech_recognition_default_and_advanced_override(self):
+        init = ast.get_source_segment(SRC, app_method("__init__"))
+        ui = ast.get_source_segment(SRC, app_method("build_ui"))
+        start = ast.get_source_segment(SRC, app_method("start"))
+        persist = ast.get_source_segment(SRC, app_method("persist"))
+        resolve = app_method("_effective_asr_model")
+        self.assertIn('self.settings.get("asr_mode", "auto")', init)
+        self.assertIn('음성 인식 · 자동 최적화', ui)
+        self.assertIn('asr_row = ttk.Frame(tools', ui)
+        self.assertIn('values=["auto", "base", "small", "tiny"]', ui)
+        self.assertNotIn('text="Whisper 모델"', ui)
+        self.assertNotIn('text="인식 간격"', ui)
+        self.assertIn('self._effective_asr_model(self.model.get())', start)
+        self.assertIn('"asr_mode": self.model.get()', persist)
+        body = ast.get_source_segment(SRC, resolve)
+        self.assertIn('else "base"', body)
+
     def test_model_loading_status_is_not_silent_and_marks_completion(self):
         worker = ast.get_source_segment(SRC, app_method("capture_and_translate"))
         ui = ast.get_source_segment(SRC, app_method("consume"))
