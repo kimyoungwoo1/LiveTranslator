@@ -24,7 +24,7 @@ jobs:
       - name: Syntax check
         run: |
           python -m py_compile app_core.py updater.py streaming_pipeline.py launcher.py
-          python -m py_compile updates/v0.6.20/app_core.py updates/v0.6.20/streaming_pipeline.py
+          python -m py_compile updates/v0.6.21/app_core.py updates/v0.6.21/streaming_pipeline.py
           python -m unittest discover -s tests -p "test_patch_syntax.py" -v
       - name: Test update integrity, acoustic overlap and sentence reconstruction
         run: python -m unittest discover -s tests -v
