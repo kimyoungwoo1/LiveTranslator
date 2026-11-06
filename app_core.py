@@ -1300,6 +1300,11 @@ class App:
     def start(self):
         if self.running:
             return
+        if self.summary_running:
+            messagebox.showinfo(
+                "AI 회의 요약", "이전 회의의 AI 요약이 끝난 뒤 새 번역을 시작해 주세요."
+            )
+            return
         if not self.devices or self.device_combo.current() < 0:
             # The Windows playback device can appear just after startup.
             # Retry enumeration once rather than requiring a manual refresh.
