@@ -127,6 +127,7 @@ def hymt_model(server_path, threads, port):
         yield translate, {
             "model": HY_REPO, "quantization": "Q4_K_M",
             "backend": "llama.cpp llama-server CPU",
+            "server_pid": server.pid,
             "source": model_path
         }
     finally:
@@ -144,6 +145,16 @@ def memory_mb():
         import psutil
         return round(psutil.Process().memory_info().rss / 1024**2, 1)
     except ImportError:
+        return None
+
+
+def child_memory_mb(pid):
+    if not pid:
+        return None
+    try:
+        import psutil
+        return round(psutil.Process(pid).memory_info().rss / 1024**2, 1)
+    except (ImportError, OSError):
         return None
 
 
@@ -185,6 +196,7 @@ def run_cases(translate, name, model_info, data, limit):
         "p50_seconds": round(statistics.median(all_seconds), 3),
         "max_seconds": max(all_seconds),
         "memory_mb_process_after": memory_mb(),
+        "memory_mb_backend_after": child_memory_mb(model_info.get("server_pid")),
         "hardware": {
             "cpu_count": os.cpu_count(),
             "platform": sys.platform
