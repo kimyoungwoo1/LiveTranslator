@@ -1,15 +1,15 @@
 {
-  "version": "0.6.27",
+  "version": "0.6.28",
   "min_bootstrap": "0.6.0",
-  "notes": "Fix '오디오 자동 감지 실패' on first Start after update. Clicking 번역 시작 now directly opens the selected/default Windows output and waits for real audio instead of requiring a successful loudness probe. If startup device enumeration was empty, retry refresh internally once. Persist selected device on Start. Optional 소리 찾기 remains manual; no automatic device switches. Whisper, Hy-MT2/Argos/Google and TXT logging unchanged. Windows syntax and full regression tests passed; no EXE/model reinstall.",
+  "notes": "Preserve English cash-flow meaning across ASR chunk boundaries: hold trailing 'some cash.' until a lowercase 'flow problems' continuation; at hard bounds translate prior full sentences without flushing the incomplete tail. Add short idiom guidance only for expressions present in the CURRENT utterance (business appreciation, mutual benefit, keep an eye out), never supply earlier dialogue to Hy-MT2. Existing models, device initialization, Argos/Google and paired TXT logging unchanged. Windows syntax and complete regression suite passed before release; real-model translation gain requires retest.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.27/app_core.py",
+      "path": "updates/v0.6.28/app_core.py",
       "git_sha1": "96229f3102ce4795f90502c98bd3b5097a753241"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.27/streaming_pipeline.py",
-      "git_sha1": "0d2958afa0352d703a04cb8039646de9f6a6eaf1"
+      "path": "updates/v0.6.28/streaming_pipeline.py",
+      "git_sha1": "9628c4539937a8e3553527cd0f9897bc8b7a34ee"
     }
   }
 }
