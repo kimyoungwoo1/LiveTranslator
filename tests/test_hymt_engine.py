@@ -333,5 +333,41 @@ class HyMT2Tests(unittest.TestCase):
         self.assertIn('if engine == "google":', text)
 
 
+    def test_conservative_korean_idiom_repair(self):
+        fix = self.mod._repair_clear_korean_idiom_mistranslations
+        self.assertEqual(
+            fix("We appreciate your business, Andrea.",
+                "여러분의 고객이 되어주셔서 감사합니다.", "en"),
+            "거래해 주셔서 감사합니다.",
+        )
+        self.assertEqual(
+            fix("It works both ways. Thanks again, Junko.",
+                "양방으로 작동해요. 다시 한번 고마워요.", "en"),
+            "서로에게 도움이 되는 일이에요. 다시 한번 고마워요.",
+        )
+        self.assertEqual(
+            fix("I'll email you the new order. I'll keep an eye out for it.",
+                "새 주문을 이메일로 보낼게요. 그걸 잘 지켜보겠습니다.", "en"),
+            "새 주문을 이메일로 보낼게요. 메일이 오면 확인할게요.",
+        )
+        self.assertEqual(
+            fix("It works both ways.", "양방으로 작동해요.", "en"),
+            "양방으로 작동해요.",
+        )
+        self.assertEqual(
+            fix("This program works both ways. Thanks!",
+                "양방으로 작동해요.", "en"),
+            "양방으로 작동해요.",
+        )
+        self.assertEqual(
+            fix("We appreciate your business.", "거래해 주셔서 고맙습니다.", "en"),
+            "거래해 주셔서 고맙습니다.",
+        )
+        self.assertEqual(
+            fix("We appreciate your business.", "여러분의 고객이 되어주셔서 감사합니다.", "ja"),
+            "여러분의 고객이 되어주셔서 감사합니다.",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
