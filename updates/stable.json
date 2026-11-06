@@ -1,15 +1,15 @@
 {
-  "version": "0.6.39",
+  "version": "0.6.40",
   "min_bootstrap": "0.6.0",
-  "notes": "Increase bounded audio context overlap from 0.7 to 0.9 seconds to reduce cutting spoken words at streaming ASR chunk boundaries. Existing verified transcript overlap deduplication remains enabled; audio chunks are queued only once. Preserve automatic speech recognition, Hy-MT2 translation, two saved TXT files, and user settings. Windows syntax and full regression suite passed. This may improve clipped boundary words but does not recover speech entirely missed by Whisper.",
+  "notes": "Repair English sentence assembly before offline translation: retain high-confidence incomplete spoken clauses despite Whisper's false question mark/period (e.g. 'It works both.' + 'ways.', 'Let me see what I can.' + 'do.', 'We are happy to help.' + 'you.'); suppress a verified repeated dangling question word ('How?' followed by 'How can...') instead of translating the duplicate alone. Preserve genuinely new speaker turns and complete questions, avoid inventing missed speech, keep realtime bounds, automatic ASR and two TXT files. All 141 Windows regression tests and syntax checks passed.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.39/app_core.py",
+      "path": "updates/v0.6.40/app_core.py",
       "git_sha1": "bb8adc741e9cc1c95f11546129ff51ca4f311ac5"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.39/streaming_pipeline.py",
-      "git_sha1": "e71a148641ea7a9622ceb12b4fcf61f1f32517bf"
+      "path": "updates/v0.6.40/streaming_pipeline.py",
+      "git_sha1": "9bbe81793f4da91e48a8dbb57dbb2c6b956d95f0"
     }
   }
 }
