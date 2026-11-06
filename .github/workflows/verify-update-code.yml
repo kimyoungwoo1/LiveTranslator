@@ -24,7 +24,7 @@ jobs:
       - name: Syntax check
         run: |
           python -m py_compile app_core.py updater.py streaming_pipeline.py launcher.py
-          python -m py_compile updates/v0.6.40/app_core.py updates/v0.6.40/streaming_pipeline.py
+          python -m py_compile updates/v0.6.41/app_core.py updates/v0.6.41/streaming_pipeline.py
           python -m unittest discover -s tests -p "test_patch_syntax.py" -v
-      - name: Regression - v0.6.40 bounded clause completion
+      - name: Regression - v0.6.41 business dialogue coherence
         run: python -m unittest discover -s tests -v
