@@ -217,3 +217,21 @@ If installation still fails, click **설치 오류 확인** in the translation-e
 Because access to Hugging Face / GitHub depends on the user's network, this compatibility patch cannot guarantee a successful download on every Windows machine. In particular, corporate TLS proxies or endpoint antivirus may block the official artifacts; the error log should make that visible.
 
 Official upstream references: https://huggingface.co/tencent/Hy-MT2-1.8B-GGUF and https://github.com/ggml-org/llama.cpp/releases . The pinned fallback CPU ZIP digest is taken from an official GitHub release attestation (b12122).
+
+## v0.6.18: Whisper speech completeness and sentence boundaries
+
+This quality patch keeps the existing **Hy-MT2 / Argos / Google** provider choices and all model files. No EXE rebuild or new model download is needed.
+
+### Changes
+
+- **0.7-second audio overlap (offline quality modes)**: carry a short tail of the previous capture block into the next Whisper inference, reducing word truncation at 3–5 second boundaries. Only the next inference sees the overlap; the recording timeline itself is not duplicated.
+- **Conservative English duplication filtering**: strip repeated words only when at least 2 consecutive recognized words at the adjacent boundary match. One-word repeated replies are retained. Japanese transcripts are not mechanically de-duplicated by English word boundaries.
+- **Sentence continuity**: treat fragments ending with `...` as unfinished, so `... another new...` followed by `order` can reach Hy-MT2 as a coherent `... another new order` rather than separate translations.
+- **CPU adaptive decoding**: use beam 5 when the capture queue is clear, beam 3 with 2–3 pending chunks, beam 2 with 4+ pending chunks, and retain queue-overflow visibility. This favors capturing more speech when Whisper CPU work is falling behind.
+- **Google unchanged**: its original fast fixed-length mode is preserved; no audio overlap is added to that provider.
+
+### Test with the existing British Council phone conversation
+
+Compare the *recognized English*, particularly `extend it to 60 days`, `Can you send me a quick email confirmation`, and `new order`. Check that words around chunk boundaries are no longer clipped or duplicated, and that the **음성 누락** counter does not rise. Compare Korean translation separately. More accurate English input can improve Hy-MT2 output, but **v0.6.18 does not guarantee a WER improvement** on every recording. CPU load may increase somewhat due to overlapping inference.
+
+Apply via **업데이트 확인 → v0.6.18 → restart**. Existing EXE and local Hy-MT2 model/runtime are reused.
