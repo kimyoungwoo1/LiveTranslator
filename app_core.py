@@ -524,11 +524,16 @@ class App:
 
         status_panel = ttk.Frame(outer, style="LTCard.TFrame", padding=(15, 10))
         status_panel.pack(fill="x", pady=(0, 9))
-        ttk.Label(status_panel, textvariable=self.status, style="LTCard.TLabel",
-                  wraplength=960).pack(anchor="w", pady=(0, 7))
+        status_heading = ttk.Frame(status_panel, style="LTCard.TFrame")
+        status_heading.pack(fill="x", pady=(0, 7))
+        tk.Label(status_heading, text="●  LIVE", bg=colors["card"],
+                 fg=colors["green"], font=("Malgun Gothic", 10, "bold")
+                 ).pack(side="left", padx=(0, 17))
+        ttk.Label(status_heading, textvariable=self.status, style="LTCard.TLabel",
+                  wraplength=940).pack(side="left", fill="x", expand=True)
         meter = ttk.Frame(status_panel, style="LTCard.TFrame")
         meter.pack(fill="x")
-        ttk.Label(meter, text="오디오 입력", style="LTCardMuted.TLabel").pack(side="left", padx=(0, 12))
+        ttk.Label(meter, text="입력 레벨", style="LTCardMuted.TLabel").pack(side="left", padx=(0, 12))
         ttk.Progressbar(meter, variable=self.audio_meter, maximum=100,
                         length=150).pack(side="left", padx=(0, 12))
         self.audio_meter_label = ttk.Label(meter, textvariable=self.audio_state,
