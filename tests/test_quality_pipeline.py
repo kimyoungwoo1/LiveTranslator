@@ -73,7 +73,7 @@ class QualityTests(unittest.TestCase):
         source = (Path(__file__).resolve().parent.parent / "streaming_pipeline.py").read_text(encoding="utf-8")
         self.assertIn("QUALITY_OVERLAP_SECONDS = 0.7", source)
         self.assertIn("block, overlap_tail = add_audio_context(", source)
-        self.assertIn("last_recognized_audio_text = raw_original", source)
+        self.assertIn("last_recognized_audio_text = cleaned_original", source)
         self.assertIn("strip_transcript_overlap(", source)
         self.assertIn("if not quality_mode or block.size == 0:", source)
 
