@@ -327,6 +327,49 @@ class HyMT2Tests(unittest.TestCase):
         self.assertIn("결제 기한을 60일로 연장하기로 했습니다.", prompt)
         self.assertNotIn("PREVIOUS", prompt)
 
+    def test_summary_prompt_preserves_proposal_vs_confirmed_and_order_details(self):
+        backend = self.mod.HyMT2Backend("unused")
+        backend.port = 14811
+        backend.process = mock.MagicMock()
+        backend.process.poll.return_value = None
+        response = mock.MagicMock()
+        response.read.return_value = json.dumps({
+            "choices": [{"message": {"content": "결정/협의 상태: 60일 연장 잠정 동의"}}]
+        }, ensure_ascii=False).encode("utf-8")
+        manager = mock.MagicMock()
+        manager.__enter__.return_value = response
+        with mock.patch.object(self.mod.urlrequest, "urlopen", return_value=manager) as opened:
+            backend.summarize_korean(
+                "기존 30일 결제 기한을 60일로 연장 요청. 이번에는 예외를 허용할 수 있을 것 같아요.",
+                evidence="신규 주문은 지난번과 같은 규모. 신규 주문서를 이메일로 보내겠습니다.",
+            )
+        prompt = json.loads(opened.call_args.args[0].data)["messages"][0]["content"]
+        self.assertIn("잠정 수락", prompt)
+        self.assertIn("최종 승인", prompt)
+        self.assertIn("신규 주문", prompt)
+        self.assertIn("후속 조치", prompt)
+        self.assertIn("지난번과 같은 규모", prompt)
+        self.assertIn("30일", prompt)
+        self.assertNotIn("PREVIOUS", prompt)
+
+    def test_literal_idiom_fix_does_not_touch_bidirectional_software(self):
+        fix = self.mod._repair_clear_korean_idiom_mistranslations
+        self.assertEqual(
+            fix("This program works both ways. Thanks!",
+                "양방향으로 작동해요.", "en"),
+            "양방향으로 작동해요.",
+        )
+        self.assertEqual(
+            fix("And we appreciate your business, Andrea.",
+                "그리고 당신의 고객님의 지원에 감사드립니다, 안드레아.", "en"),
+            "그리고 거래해 주셔서 감사합니다, 안드레아.",
+        )
+        self.assertEqual(
+            fix("Thanks. I'll keep an eye out for it.",
+                "고마워요. 그걸 기대하며 주의를 기울이겠습니다.", "en"),
+            "고마워요. 소식 기다릴게요.",
+        )
+
     def test_unsupported_language_does_not_send_requests(self):
         backend = self.mod.HyMT2Backend("unused")
         with self.assertRaisesRegex(RuntimeError, "영어 또는 일본어"):
@@ -371,8 +414,8 @@ class HyMT2Tests(unittest.TestCase):
             "새 주문을 이메일로 보낼게요. 메일이 오면 확인할게요.",
         )
         self.assertEqual(
-            fix("It works both ways.", "양방으로 작동해요.", "en"),
-            "양방으로 작동해요.",
+            fix("It works both ways.", "양방향으로 작동해요.", "en"),
+            "서로에게 도움이 되는 일이에요.",
         )
         self.assertEqual(
             fix("This program works both ways. Thanks!",
