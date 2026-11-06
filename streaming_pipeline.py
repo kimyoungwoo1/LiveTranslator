@@ -298,6 +298,315 @@ def find_active_loopback(devices, progress=None, seconds=1.0, max_devices=12,
 
 
 
+
+# Optional Hy-MT2 translation backend: standard-library only.
+# It is intentionally kept in the patchable streaming_pipeline.py so users do
+# not need another 800MB EXE download or a new installed Python dependency.
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import secrets
+import shutil
+import socket
+import subprocess
+import tempfile
+import zipfile
+from urllib import error as urlerror
+from urllib import request as urlrequest
+
+HYM_REPO = "tencent/Hy-MT2-1.8B-GGUF"
+HYM_FILE = "Hy-MT2-1.8B-Q4_K_M.gguf"
+HYM_HF_API = "https://huggingface.co/api/models/" + HYM_REPO + "/tree/main"
+HYM_MODEL_URL = "https://huggingface.co/" + HYM_REPO + "/resolve/main/" + HYM_FILE
+HYM_GH_API = "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest"
+
+
+def _hym_json(url, timeout=20):
+    request = urlrequest.Request(url, headers={
+        "User-Agent": "LiveTranslator-HyMT2/0.6",
+        "Accept": "application/json",
+    })
+    with urlrequest.urlopen(request, timeout=timeout) as response:
+        return json.loads(response.read(3_000_000).decode("utf-8"))
+
+
+def _hym_sha256(path):
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for block in iter(lambda: handle.read(4 * 1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _hym_download(url, dest, expected_hash, max_bytes, progress, cancel=None):
+    """Bounded, resumable HTTPS download with compulsory publisher SHA-256."""
+    if not re.fullmatch(r"[0-9a-f]{64}", expected_hash or ""):
+        raise RuntimeError("공식 배포 파일의 SHA-256 검증 정보를 확인할 수 없습니다.")
+    if not url.startswith(("https://huggingface.co/", "https://github.com/")):
+        raise RuntimeError("허용되지 않은 모델 또는 실행기 다운로드 주소입니다.")
+    dest = Path(dest)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    part = dest.with_name(dest.name + ".part")
+    if dest.is_file() and dest.stat().st_size < max_bytes:
+        if _hym_sha256(dest) == expected_hash:
+            progress(f"이미 다운로드된 파일을 확인했습니다: {dest.name}")
+            return dest
+    # Resume interrupted files, but verify the final full-file digest.
+    existing = part.stat().st_size if part.exists() else 0
+    if existing > max_bytes:
+        part.unlink()
+        existing = 0
+    request_headers = {"User-Agent": "LiveTranslator-HyMT2/0.6"}
+    if existing:
+        request_headers["Range"] = f"bytes={existing}-"
+    request = urlrequest.Request(url, headers=request_headers)
+    last_report = 0.0
+    with urlrequest.urlopen(request, timeout=60) as response:
+        content_range = response.headers.get("Content-Range", "")
+        if existing and (response.status != 206 or
+                         not content_range.startswith(f"bytes {existing}-")):
+            # Server returned an entire file rather than a resumable range.
+            existing = 0
+        mode = "ab" if existing and response.status == 206 else "wb"
+        total = existing
+        if response.headers.get("Content-Length"):
+            total_expected = existing + int(response.headers["Content-Length"])
+            if total_expected > max_bytes:
+                raise RuntimeError("예상보다 큰 다운로드 파일입니다. 설치를 중단했습니다.")
+        with part.open(mode) as out:
+            while True:
+                if cancel is not None and cancel.is_set():
+                    raise RuntimeError("사용자가 설치를 중단했습니다.")
+                block = response.read(2 * 1024 * 1024)
+                if not block:
+                    break
+                total += len(block)
+                if total > max_bytes:
+                    raise RuntimeError("다운로드 크기 제한을 초과했습니다.")
+                out.write(block)
+                now = time.monotonic()
+                if now - last_report > 1.5:
+                    progress(f"{dest.name} 다운로드 중 · {total / 1048576:.0f} MB")
+                    last_report = now
+    progress("SHA-256 무결성을 검증하는 중...")
+    if _hym_sha256(part) != expected_hash:
+        part.unlink(missing_ok=True)
+        raise RuntimeError("다운로드 파일의 SHA-256이 공식 배포본과 다릅니다.")
+    os.replace(part, dest)
+    return dest
+
+
+def _hym_model_metadata():
+    entries = _hym_json(HYM_HF_API, timeout=20)
+    if not isinstance(entries, list):
+        raise RuntimeError("공식 모델 파일 목록 응답이 올바르지 않습니다.")
+    entry = next((x for x in entries if x.get("path") == HYM_FILE), None)
+    if not entry:
+        raise RuntimeError("공식 모델 저장소에서 Q4_K_M 파일을 찾지 못했습니다.")
+    lfs = entry.get("lfs") or {}
+    digest = lfs.get("oid")
+    if isinstance(digest, str) and digest.startswith("sha256:"):
+        digest = digest[7:]
+    if not re.fullmatch(r"[0-9a-f]{64}", digest or ""):
+        raise RuntimeError("모델 SHA-256 정보를 검증할 수 없습니다.")
+    return digest, int(entry.get("size") or lfs.get("size") or 0)
+
+
+def _hym_runtime_asset():
+    release = _hym_json(HYM_GH_API, timeout=20)
+    assets = release.get("assets") or []
+    choices = [
+        a for a in assets
+        if re.fullmatch(r"llama-.*-bin-win-cpu-x64\.zip", a.get("name", ""), re.I)
+    ]
+    if not choices:
+        raise RuntimeError("공식 llama.cpp Windows x64 CPU 실행기 ZIP을 찾지 못했습니다.")
+    asset = choices[0]
+    digest = asset.get("digest") or ""
+    if not digest.startswith("sha256:"):
+        raise RuntimeError("공식 실행기 다운로드에 SHA-256 정보가 없어 안전하게 설치할 수 없습니다.")
+    return asset["browser_download_url"], digest[7:], asset["name"]
+
+
+def find_hym_server(folder, custom_path=None):
+    if custom_path:
+        p = Path(custom_path)
+        if p.is_file() and p.name.lower() == "llama-server.exe":
+            return p
+        raise RuntimeError("선택한 llama-server.exe 경로를 찾을 수 없습니다.")
+    runtime = Path(folder) / "runtime"
+    return next(runtime.rglob("llama-server.exe"), None) if runtime.is_dir() else None
+
+
+def hym_ready(folder, custom_path=None):
+    folder = Path(folder)
+    model = folder / "models" / HYM_FILE
+    runtime = find_hym_server(folder, custom_path)
+    return (runtime is not None and model.is_file()
+            and model.stat().st_size > 500_000_000)
+
+
+def setup_hym(folder, progress, custom_path=None, cancel=None):
+    """Explicit install only: official model and official CPU runtime, once."""
+    folder = Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    model = folder / "models" / HYM_FILE
+    if not model.is_file() or model.stat().st_size < 500_000_000:
+        progress("공식 Hugging Face 모델 파일 확인 중...")
+        digest, size = _hym_model_metadata()
+        if not 500_000_000 <= size <= 2_500_000_000:
+            raise RuntimeError("공식 모델 크기 정보가 올바르지 않습니다.")
+        _hym_download(HYM_MODEL_URL, model, digest, 2_500_000_000, progress, cancel)
+    if find_hym_server(folder, custom_path):
+        progress("Hy-MT2 모델과 llama.cpp 실행기 준비 완료")
+        return
+    progress("공식 llama.cpp CPU 실행기 확인 중...")
+    url, digest, name = _hym_runtime_asset()
+    zip_file = folder / name
+    _hym_download(url, zip_file, digest, 350_000_000, progress, cancel)
+    runtime = folder / "runtime"
+    staging = Path(tempfile.mkdtemp(prefix="runtime-stage-", dir=folder))
+    try:
+        with zipfile.ZipFile(zip_file) as archive:
+            items = archive.infolist()
+            if len(items) > 1500 or sum(x.file_size for x in items) > 900_000_000:
+                raise RuntimeError("실행기 압축파일에 허용되지 않은 데이터가 포함돼 있습니다.")
+            for item in items:
+                path = Path(item.filename.replace("\\", "/"))
+                if (path.is_absolute() or ".." in path.parts or
+                        item.file_size > 250_000_000 or
+                        (item.external_attr >> 16) & 0o170000 == 0o120000):
+                    raise RuntimeError("안전하지 않은 ZIP 항목을 차단했습니다.")
+                target = staging / path
+                if item.is_dir():
+                    target.mkdir(parents=True, exist_ok=True)
+                else:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    with archive.open(item) as source, target.open("wb") as output:
+                        shutil.copyfileobj(source, output, length=2 * 1024 * 1024)
+        if not next(staging.rglob("llama-server.exe"), None):
+            raise RuntimeError("실행기 ZIP에서 llama-server.exe를 찾을 수 없습니다.")
+        if runtime.exists():
+            shutil.rmtree(runtime)
+        os.replace(staging, runtime)
+        zip_file.unlink(missing_ok=True)
+    finally:
+        if staging.exists():
+            shutil.rmtree(staging, ignore_errors=True)
+    progress("Hy-MT2 모델과 공식 llama.cpp CPU 실행기 설치 완료")
+
+
+class HyMT2Backend:
+    """Launch a private local CPU-only llama-server and translate via loopback."""
+    def __init__(self, folder, server_path=None):
+        self.folder = Path(folder)
+        self.server_path = server_path
+        self.process = None
+        self.log = None
+        self.port = None
+
+    def start(self, stop_event, progress):
+        if not hym_ready(self.folder, self.server_path):
+            raise RuntimeError("Hy-MT2 설치가 필요합니다. 번역 엔진의 'Hy-MT2 설치'를 누르세요.")
+        exe = find_hym_server(self.folder, self.server_path)
+        model = self.folder / "models" / HYM_FILE
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.bind(("127.0.0.1", 0))
+            self.port = sock.getsockname()[1]
+        self.folder.mkdir(parents=True, exist_ok=True)
+        self.log = (self.folder / "server.log").open("w", encoding="utf-8")
+        args = [
+            str(exe), "--model", str(model),
+            "--host", "127.0.0.1", "--port", str(self.port),
+            "--threads", "4", "--ctx-size", "2048",
+            "--n-gpu-layers", "0", "--parallel", "1"
+        ]
+        progress("Hy-MT2 CPU 번역 모델 로딩 중 · 최초 시작에는 시간이 걸릴 수 있습니다...")
+        try:
+            self.process = subprocess.Popen(
+                args, cwd=str(exe.parent), stdout=self.log,
+                stderr=subprocess.STDOUT,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)
+            )
+            deadline = time.monotonic() + 90
+            while time.monotonic() < deadline and not stop_event.is_set():
+                if self.process.poll() is not None:
+                    raise RuntimeError(
+                        "Hy-MT2 서버가 종료되었습니다. 설치 폴더의 server.log를 확인하세요."
+                    )
+                try:
+                    with urlrequest.urlopen(
+                        f"http://127.0.0.1:{self.port}/health", timeout=1
+                    ) as response:
+                        health = json.loads(response.read(4096).decode("utf-8"))
+                        if health.get("status") in ("ok", "ready"):
+                            progress("Hy-MT2 로컬 번역 모델 준비 완료")
+                            return
+                except (OSError, ValueError):
+                    pass
+                time.sleep(0.5)
+            if stop_event.is_set():
+                raise RuntimeError("Hy-MT2 시작이 중지되었습니다.")
+            raise RuntimeError("Hy-MT2 모델 시작 시간이 90초를 초과했습니다.")
+        except Exception:
+            self.stop()
+            raise
+
+    def translate(self, text, source_lang):
+        if not text.strip():
+            return ""
+        if source_lang not in ("en", "ja"):
+            raise RuntimeError("Hy-MT2는 영어 또는 일본어 원문만 번역하도록 설정돼 있습니다.")
+        if not self.process or self.process.poll() is not None:
+            raise RuntimeError("Hy-MT2 로컬 번역 서버가 종료되었습니다.")
+        lang = "English" if source_lang == "en" else "Japanese"
+        prompt = (
+            f"Translate the following {lang} text into natural Korean. "
+            "Preserve numbers, amounts and proper names faithfully. "
+            "Output only the Korean translation without explanation.\n\n" +
+            text[:5000]
+        )
+        payload = {
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0, "max_tokens": 220, "stream": False,
+        }
+        request = urlrequest.Request(
+            f"http://127.0.0.1:{self.port}/v1/chat/completions",
+            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+        try:
+            with urlrequest.urlopen(request, timeout=35) as response:
+                answer = json.loads(response.read(1_000_000))
+            translated = answer["choices"][0]["message"]["content"].strip()
+            if not translated:
+                raise RuntimeError("번역 결과가 비어 있습니다.")
+            return translated
+        except (urlerror.URLError, TimeoutError) as exc:
+            raise RuntimeError(f"Hy-MT2 로컬 번역 응답 실패: {exc}") from None
+        except (KeyError, TypeError, IndexError, ValueError):
+            raise RuntimeError("Hy-MT2 응답 형식을 해석할 수 없습니다.") from None
+
+    def stop(self):
+        if self.process is not None:
+            if self.process.poll() is None:
+                self.process.terminate()
+                try:
+                    self.process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    self.process.kill()
+                    self.process.wait(timeout=5)
+            self.process = None
+        if self.log:
+            self.log.close()
+            self.log = None
+        self.port = None
+
+
+
 def should_finalize_audio(sample_count, silence_count, rate, interval_seconds,
                           quality_mode=False):
     """Split natural speech near a pause instead of at a fixed clock boundary.
