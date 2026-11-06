@@ -1,15 +1,15 @@
 {
-  "version": "0.6.28",
+  "version": "0.6.29",
   "min_bootstrap": "0.6.0",
-  "notes": "Preserve English cash-flow meaning across ASR chunk boundaries: hold trailing 'some cash.' until a lowercase 'flow problems' continuation; at hard bounds translate prior full sentences without flushing the incomplete tail. Add short idiom guidance only for expressions present in the CURRENT utterance (business appreciation, mutual benefit, keep an eye out), never supply earlier dialogue to Hy-MT2. Existing models, device initialization, Argos/Google and paired TXT logging unchanged. Windows syntax and complete regression suite passed before release; real-model translation gain requires retest.",
+  "notes": "Improve incomplete payment-term clause joining and conservative Korean business idiom translation for current English utterance only. Preserve natural model outputs; never fabricate uncertain Whisper words. Unchanged ASR audio overlap, models, device selection, translation alternatives and TXT transcript storage. Windows syntax and 116 regression tests passed; real-audio accuracy requires user retest.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.28/app_core.py",
+      "path": "updates/v0.6.29/app_core.py",
       "git_sha1": "96229f3102ce4795f90502c98bd3b5097a753241"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.28/streaming_pipeline.py",
-      "git_sha1": "9628c4539937a8e3553527cd0f9897bc8b7a34ee"
+      "path": "updates/v0.6.29/streaming_pipeline.py",
+      "git_sha1": "4051e51834ba58c0bda631a4abc9d4f7c53fe171"
     }
   }
 }
