@@ -727,7 +727,8 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
     if source_lang != "en":
         return korean
     fixed = korean
-    if re.search(r"\binvoice\b", source, re.IGNORECASE):
+    if (re.search(r"\binvoice\b", source, re.IGNORECASE)
+            and not re.search(r"\b(?:receipt|receipts)\b", source, re.IGNORECASE)):
         # English invoice means a request for payment. Only fix this clear
         # single-term mismatch; leave receipts from other source words intact.
         fixed = re.sub(r"영수증", "청구서", fixed)
