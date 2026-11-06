@@ -1,15 +1,15 @@
 {
-  "version": "0.6.32",
+  "version": "0.6.33",
   "min_bootstrap": "0.6.0",
-  "notes": "Fit startup window to screen height with taskbar room; reserve the always-visible bottom control bar before expanding the two transcript panes; give captions more space by default by folding optional engine installation controls; Hy-MT2 first and recommended for new settings (existing saved engine preferences are preserved); relabel Argos as lightweight offline rather than high quality. No ASR, translation model, transcripts or update mechanism changes. Passed Windows syntax and full regression suite.",
+  "notes": "When '원문·번역 + AI 요약 TXT 2개 저장' is checked, create two files with a common session stem: the existing complete source+Korean transcript and a separate _AI요약.txt. On stopping, summarize all saved Korean translation segments with the installed local offline Hy-MT2 model in bounded chunks; avoid dropping long meetings. AI summary generation is experimental because Hy-MT2 is optimized for translation. If unavailable or failed, the summary file explicitly records the cause, never fabricated AI output. No external API is used for summarization. Preserve audio, translation, UI, and updater. Windows syntax and full regression suite passed.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.32/app_core.py",
-      "git_sha1": "c476555c8bfd9ef72292970e182d13ed2c9ddff5"
+      "path": "updates/v0.6.33/app_core.py",
+      "git_sha1": "24c160c392846167d174da722122a7ca027f8ebe"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.32/streaming_pipeline.py",
-      "git_sha1": "4051e51834ba58c0bda631a4abc9d4f7c53fe171"
+      "path": "updates/v0.6.33/streaming_pipeline.py",
+      "git_sha1": "874303fcb06a41d1c7b254f6d6c1ac6903d76d27"
     }
   }
 }
