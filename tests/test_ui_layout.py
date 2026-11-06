@@ -67,7 +67,7 @@ class DashboardTests(unittest.TestCase):
         self.assertIn('values=["auto", "base", "small", "tiny"]', ui)
         self.assertNotIn('text="Whisper 모델"', ui)
         self.assertNotIn('text="인식 간격"', ui)
-        self.assertIn('self._effective_asr_model(self.model.get())', start)
+        self.assertIn('self._recognition_options()', start)
         self.assertIn('"asr_mode": self.model.get()', persist)
         body = ast.get_source_segment(SRC, resolve)
         self.assertIn('else "base"', body)
