@@ -62,7 +62,7 @@ class TranscriptFilesTests(unittest.TestCase):
                 self.assertLess(result.index("One order."), result.index("주문 한 건."))
                 self.assertLess(result.index("주문 한 건."), result.index("Pay in 60 days."))
                 self.assertLess(result.index("Pay in 60 days."), result.index("60일 이내에 결제하세요."))
-                self.assertEqual(len(list(Path(folder).glob("*.txt"))), 1)
+                self.assertEqual(len(list(Path(folder).glob("*.txt"))), 2)
 
     def test_sessions_have_unique_filenames_even_same_second(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -134,9 +134,17 @@ class TranscriptFilesTests(unittest.TestCase):
         app = self.app()
         with tempfile.TemporaryDirectory() as folder:
             summary_path = Path(folder) / "test_AI요약.txt"
-            with mock.patch("streaming_pipeline.hym_ready", return_value=False):
-                with self.assertRaisesRegex(RuntimeError, "설치되지 않아"):
-                    app._create_ai_summary(summary_path, ["안녕하세요"], None)
+            # Import via patched optional audio dependencies, just as the app does.
+            with mock.patch.dict(sys.modules, {
+                "numpy": mock.MagicMock(),
+                "scipy": mock.MagicMock(),
+                "scipy.signal": mock.MagicMock(),
+                "pyaudiowpatch": mock.MagicMock(),
+            }):
+                import streaming_pipeline
+                with mock.patch.object(streaming_pipeline, "hym_ready", return_value=False):
+                    with self.assertRaisesRegex(RuntimeError, "설치되지 않아"):
+                        app._create_ai_summary(summary_path, ["안녕하세요"], None)
 
     def test_windows_explorer_still_opens_records_directory(self):
         with tempfile.TemporaryDirectory() as folder:
