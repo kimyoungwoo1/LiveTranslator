@@ -1,15 +1,15 @@
 {
-  "version": "0.6.24",
+  "version": "0.6.25",
   "min_bootstrap": "0.6.0",
-  "notes": "Urgent Hy-MT2 wrong-utterance correction. v0.6.23 passed previous dialogue to the small CPU model, which sometimes translated past English instead of CURRENT, including 60-day payment terms and approval. Roll back to the proven independent current-utterance prompt from v0.6.22, removing all previous-source context; keep ASR, other engines, one-file-per-session TXT, models and EXE unchanged. Windows syntax and full unit regression tests passed before release.",
+  "notes": "Improve Hy-MT2/Argos sentence continuity at clipped negative clauses: join trailing 'I'm not.' with a lowercase 'sure if I can...' next chunk without swallowing prior complete sentences. Hy-MT2 remains context-free: translate the CURRENT sentence alone, using a short instruction for polite idiomatic Korean, preserving negation, numbers, and questions. No model or EXE reinstall, legacy logs/settings retained. Windows syntax and complete regression tests passed before release.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.24/app_core.py",
+      "path": "updates/v0.6.25/app_core.py",
       "git_sha1": "878a26b351e20539fb4d55ec65646868834f0b83"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.24/streaming_pipeline.py",
-      "git_sha1": "9cf6a189144dbf263900ebcfb92c86a5dbf32ea9"
+      "path": "updates/v0.6.25/streaming_pipeline.py",
+      "git_sha1": "6a34c90019ab1779cd73c3a1b4865df76d5417a8"
     }
   }
 }
