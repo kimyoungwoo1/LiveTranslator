@@ -1,0 +1,71 @@
+name: Compare offline English-Korean translation models
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/translation-benchmark.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      TOKENIZERS_PARALLELISM: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify benchmark source and input data
+        run: |
+          python -m py_compile benchmarks/compare_translation_models.py benchmarks/report.py
+          python -m unittest discover -s tests -p 'test_benchmark_contract.py' -v
+
+      - name: Install CPU-only benchmark packages
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "ctranslate2>=4,<5" "sentencepiece>=0.2,<1" "huggingface_hub>=0.30,<2" "sacrebleu>=2,<3" "psutil>=6,<9"
+
+      - name: Test QuickMT on CPU (model fetched once on runner)
+        continue-on-error: true
+        run: python benchmarks/compare_translation_models.py --engine quickmt --threads 4
+
+      - name: Compile upstream llama.cpp CPU inference server
+        continue-on-error: true
+        run: |
+          git clone --depth 1 https://github.com/ggml-org/llama.cpp.git /tmp/llama.cpp
+          cmake -S /tmp/llama.cpp -B /tmp/llama-build -DCMAKE_BUILD_TYPE=Release
+          cmake --build /tmp/llama-build --target llama-server --config Release -j 3
+          /tmp/llama-build/bin/llama-server --version
+
+      - name: Test Hy-MT2 1.8B Q4_K_M on CPU (model fetched once on runner)
+        continue-on-error: true
+        run: |
+          if test -x /tmp/llama-build/bin/llama-server; then
+            python benchmarks/compare_translation_models.py --engine hymt --threads 4 --llama-server /tmp/llama-build/bin/llama-server
+          else
+            echo "Hy-MT2 skipped because llama-server build failed. See build log."
+          fi
+
+      - name: Prepare side-by-side results
+        if: always()
+        run: |
+          python benchmarks/report.py > /dev/null
+          cat benchmarks/results/report.md >> "$GITHUB_STEP_SUMMARY"
+          echo "Read the comparison in the run Summary or downloaded artifact."
+
+      - name: Upload lightweight benchmark report (no model files)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: translation-model-comparison
+          path: benchmarks/results/
+          if-no-files-found: error
+          retention-days: 14
