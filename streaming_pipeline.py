@@ -628,6 +628,8 @@ class HyMT2Backend:
         self.process = None
         self.log = None
         self.port = None
+        self._source_context = []
+        self._source_context_lang = None
 
     def start(self, stop_event, progress):
         if not hym_ready(self.folder, self.server_path):
@@ -684,12 +686,24 @@ class HyMT2Backend:
         if not self.process or self.process.poll() is not None:
             raise RuntimeError("Hy-MT2 로컬 번역 서버가 종료되었습니다.")
         lang = "English" if source_lang == "en" else "Japanese"
-        prompt = (
-            f"Translate the following {lang} text into natural Korean. "
-            "Preserve numbers, amounts and proper names faithfully. "
-            "Output only the Korean translation without explanation.\n\n" +
-            text[:5000]
+        # Context comes from successful earlier translations, never future text.
+        history = (
+            " ".join(self._source_context)[-320:]
+            if self._source_context_lang == source_lang else ""
         )
+        prompt = (
+            f"Translate ONLY the CURRENT {lang} text into natural Korean. "
+            "Use PREVIOUS solely to understand the situation and idioms; "
+            "never translate or repeat PREVIOUS. "
+            "Preserve exact numbers, units and proper names. "
+            "Translate conversational/business idioms by intended meaning, "
+            "not mechanically word for word. "
+            "Do not guess missing words or add explanations. "
+            "Output ONLY the Korean translation of CURRENT.\n\n"
+        )
+        if history:
+            prompt += f"PREVIOUS (context only):\n{history}\n\n"
+        prompt += f"CURRENT (translate this only):\n{text[:5000]}"
         payload = {
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0, "max_tokens": 220, "stream": False,
@@ -706,6 +720,11 @@ class HyMT2Backend:
             translated = answer["choices"][0]["message"]["content"].strip()
             if not translated:
                 raise RuntimeError("번역 결과가 비어 있습니다.")
+            if self._source_context_lang != source_lang:
+                self._source_context = []
+            self._source_context_lang = source_lang
+            self._source_context.append(text.strip()[-250:])
+            self._source_context = self._source_context[-2:]
             return translated
         except (urlerror.URLError, TimeoutError) as exc:
             raise RuntimeError(f"Hy-MT2 로컬 번역 응답 실패: {exc}") from None
@@ -726,6 +745,8 @@ class HyMT2Backend:
             self.log.close()
             self.log = None
         self.port = None
+        self._source_context = []
+        self._source_context_lang = None
 
 
 
