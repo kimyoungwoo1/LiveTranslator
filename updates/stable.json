@@ -1,15 +1,15 @@
 {
-  "version": "0.6.17",
+  "version": "0.6.18",
   "min_bootstrap": "0.6.0",
-  "notes": "Hy-MT2 installer hotfix: reliably read SHA-256 metadata for Hugging Face Xet GGUF via a redirect-free HEAD response, fall back to an officially attested SHA-256 pinned Windows llama.cpp CPU release when latest-release metadata is missing, and show/persist the real installation failure stage and error. Does not modify Argos, Google, Whisper or user files. The Windows download must be confirmed by the user.",
+  "notes": "Improve offline speech completeness and Hy-MT2/Argos translation across chunk boundaries without new models: carry 0.7 seconds of previous mono audio into next Whisper analysis; remove only verified duplicate English word sequences; treat trailing ellipses as unfinished speech before translating; dynamically reduce Whisper beam search only when CPU audio queue builds up, keeping beam 5 otherwise. Google fast-mode remains unchanged. May slightly increase CPU load and delay; accuracy must be validated on real audio.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.17/app_core.py",
+      "path": "updates/v0.6.18/app_core.py",
       "git_sha1": "c1198c18ebdd9921acd3c2d33c6905448527d1a1"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.17/streaming_pipeline.py",
-      "git_sha1": "bb5cc0a1e5efb57ee3fcc5f48eb9c520929583fa"
+      "path": "updates/v0.6.18/streaming_pipeline.py",
+      "git_sha1": "89d651daf03595a0ff71be51102dd2a49f66e7cb"
     }
   }
 }
