@@ -266,6 +266,9 @@ class App:
         self.last_original_at = None
         self.session_started_at = None
         self.session_record_path = None
+        self.session_summary_path = None
+        self.session_ko_lines = []
+        self.summary_running = False
         self.session_engine = None
         self.session_language = None
         self.build_ui()
@@ -528,7 +531,7 @@ class App:
         ttk.Checkbutton(actions, text="항상 위에 자막", variable=self.overlay_enabled,
                         command=self.toggle_overlay,
                         style="LTCheck.TCheckbutton").pack(side="right")
-        ttk.Checkbutton(actions, text="원문·한국어 한 파일에 저장", variable=self.save_enabled,
+        ttk.Checkbutton(actions, text="원문·번역 + AI 요약 TXT 2개 저장", variable=self.save_enabled,
                         style="LTCheck.TCheckbutton").pack(side="right", padx=(0, 16))
 
         status_panel = ttk.Frame(outer, style="LTCard.TFrame", padding=(15, 7))
@@ -660,11 +663,26 @@ class App:
         for index in range(1000):
             suffix = f"_{index:02d}" if index else ""
             path = TRANSCRIPTS / (base_name + suffix + ".txt")
+            summary_path = TRANSCRIPTS / (base_name + suffix + "_AI요약.txt")
+            if summary_path.exists():
+                continue
             try:
                 # x is atomic: never overwrite records from a prior session.
                 with path.open("x", encoding="utf-8-sig") as handle:
                     handle.write(header)
                 self.session_record_path = path
+                self.session_summary_path = summary_path
+                try:
+                    with summary_path.open("x", encoding="utf-8-sig") as summary:
+                        summary.write(
+                            f"LiveTranslator AI 회의 요약 · {started:%Y-%m-%d %H:%M:%S}\n"
+                            "상태: 번역 종료 후 로컬 AI 요약 생성 대기\n"
+                        )
+                except OSError:
+                    path.unlink(missing_ok=True)
+                    self.session_record_path = None
+                    self.session_summary_path = None
+                    raise
                 return
             except FileExistsError:
                 continue
@@ -688,9 +706,104 @@ class App:
                     f"[한국어 번역]\n{translated.strip()}\n"
                     + "-" * 48 + "\n\n"
                 )
+            self.session_ko_lines.append(translated.strip())
         except OSError as exc:
             self.save_enabled.set(False)
             self.status.set(f"TXT 기록 저장 실패 · 저장 옵션 해제됨: {exc}")
+
+    @staticmethod
+    def _summary_chunks(lines, max_chars=1100):
+        """Chunk all spoken Korean in order without silently losing long calls."""
+        chunks = []
+        current = ""
+        for line in lines:
+            line = " ".join(str(line).split())
+            if not line:
+                continue
+            while line:
+                space = max_chars - len(current) - (1 if current else 0)
+                if space <= 0:
+                    chunks.append(current)
+                    current = ""
+                    continue
+                if len(line) <= space:
+                    current += (" " if current else "") + line
+                    break
+                cut = line.rfind(" ", 0, space + 1)
+                if cut <= 0:
+                    cut = space
+                current += (" " if current else "") + line[:cut]
+                chunks.append(current)
+                current = ""
+                line = line[cut:].lstrip()
+        if current:
+            chunks.append(current)
+        return chunks
+
+    def _create_ai_summary(self, summary_path, korean_lines, server_path):
+        """Run after the last caption has been persisted, without blocking Tk."""
+        from streaming_pipeline import HyMT2Backend, hym_ready
+        if not hym_ready(HYM_DIR, server_path):
+            raise RuntimeError(
+                "로컬 Hy-MT2가 설치되지 않아 AI 요약을 생성할 수 없습니다. "
+                "설치 / 고급 설정에서 Hy-MT2를 설치한 뒤 새 회의를 기록하세요."
+            )
+        backend = HyMT2Backend(HYM_DIR, server_path=server_path)
+        try:
+            backend.start(
+                threading.Event(),
+                lambda msg: self.events.put(("summary_status", msg)),
+            )
+            parts = self._summary_chunks(korean_lines)
+            if not parts:
+                raise RuntimeError("번역된 음성이 없어 요약할 내용이 없습니다.")
+            # Summarize every passage; do not truncate the full meeting.
+            partials = []
+            for i, part in enumerate(parts, 1):
+                self.events.put(("summary_status", f"AI 요약 작성 중 ({i}/{len(parts)})"))
+                partials.append(backend.summarize_korean(part))
+            if len(partials) == 1:
+                result = partials[0]
+            else:
+                # Preserve per-section findings even if the tiny model cannot
+                # reliably consolidate an hours-long meeting into one answer.
+                result = "\n\n".join(
+                    f"[구간 {i}]\n{item}" for i, item in enumerate(partials, 1)
+                )
+            with summary_path.open("w", encoding="utf-8-sig") as handle:
+                handle.write(
+                    "LiveTranslator · AI 회의 요약\n"
+                    "요약 엔진: Hy-MT2 (로컬 / 오프라인)\n"
+                    "참고: 음성 인식·번역 오류가 요약에도 반영될 수 있습니다.\n"
+                    + "=" * 48 + "\n\n" + result + "\n"
+                )
+        finally:
+            backend.stop()
+
+    def _start_ai_summary(self):
+        if self.summary_running or not self.session_summary_path:
+            return
+        summary_path = self.session_summary_path
+        lines = list(self.session_ko_lines)
+        server_path = self.settings.get("hym_server")
+        self.summary_running = True
+        def worker():
+            try:
+                self._create_ai_summary(summary_path, lines, server_path)
+                self.events.put(("summary_complete", summary_path.name))
+            except Exception as exc:
+                # Keep the second file, but never claim a failed inference is AI output.
+                try:
+                    with summary_path.open("w", encoding="utf-8-sig") as file:
+                        file.write(
+                            "LiveTranslator · AI 회의 요약\n"
+                            "상태: 생성 실패\n"
+                            f"원인: {exc}\n"
+                        )
+                except OSError:
+                    pass
+                self.events.put(("summary_error", str(exc)))
+        threading.Thread(target=worker, name="LiveTranslatorSummary", daemon=True).start()
 
     def clear_output(self):
         """Clear displayed captions without stopping capture or deleting TXT logs."""
@@ -1243,6 +1356,8 @@ class App:
         self.remember_selected_device()
         self.session_started_at = datetime.datetime.now()
         self.session_record_path = None
+        self.session_summary_path = None
+        self.session_ko_lines = []
         self.session_engine = engine
         self.session_language = self.language.get()
         self.stop_signal = threading.Event()
@@ -1461,7 +1576,16 @@ class App:
                     self.translated.see("end")
                     self.overlay_text.config(text=translated)
                     self.save_transcript(original, translated)
+                elif kind == "summary_status":
+                    self.status.set(data)
+                elif kind == "summary_complete":
+                    self.summary_running = False
+                    self.status.set(f"AI 요약 TXT 저장 완료 · {data}")
+                elif kind == "summary_error":
+                    self.summary_running = False
+                    self.status.set(f"AI 요약 TXT 생성 실패 · {data[:140]}")
                 elif kind == "ended":
+                    self._start_ai_summary()
                     self.running = False
                     self.set_live_indicator("idle")
                     self.capture_started_at = None
@@ -1481,6 +1605,11 @@ class App:
 
     def close(self):
         """Exit from the dedicated button or title-bar X; stop capture first."""
+        if self.summary_running and not messagebox.askyesno(
+            "AI 요약 생성 중",
+            "AI 요약을 작성 중입니다. 지금 종료하면 요약 TXT가 미완성일 수 있습니다. 종료할까요?",
+        ):
+            return
         if self._hym_install_busy and not messagebox.askyesno(
             "Hy-MT2 설치 중", "모델 다운로드를 중단하고 프로그램을 종료할까요?"
         ):
