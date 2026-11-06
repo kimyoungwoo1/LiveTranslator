@@ -250,7 +250,7 @@ class App:
         self.devices = []
         self.all_devices = []
         self.settings = self.load_settings()
-        self.mode = tk.StringVar(value="output" if self.settings.get("audio_device", {}).get("loopback", True) else "input")
+        self.mode = tk.StringVar(value="output" if (self.settings.get("audio_device") or {}).get("loopback", True) else "input")
         self.device = tk.StringVar()
         self.language = tk.StringVar(value=self.settings.get("language", "en"))
         self.model = tk.StringVar(value=self.settings.get("model", "base"))
