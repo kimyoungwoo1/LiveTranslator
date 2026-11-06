@@ -246,7 +246,6 @@ class App:
         self._hym_install_busy = False
         self._hym_install_cancel = threading.Event()
         self._auto_start_pending = False
-        self._needs_auto_source = False
         self.running = False
         self.devices = []
         self.settings = self.load_settings()
@@ -296,7 +295,6 @@ class App:
             "name": selected[3],
             "loopback": bool(selected[2]),
         }
-        self._needs_auto_source = False
         self.persist()
 
     def build_ui(self):
@@ -680,11 +678,10 @@ class App:
         # A persisted choice has priority over a temporary/default selection.
         chosen = saved_index if saved_index is not None else match
         self.device_combo.current(chosen if chosen is not None else 0)
-        self._needs_auto_source = saved_index is None and match is None
         if chosen is None:
             self.status.set(
-                "저장된 오디오 출력이 없거나 연결이 끊어졌습니다. "
-                "번역 시작 시 실제 소리가 나는 출력 장치를 자동으로 찾습니다."
+                f"기본 오디오 장치 선택: {devices[0][3]} · "
+                "번역 시작 시 바로 연결합니다. 소리가 없으면 '소리 찾기'로 확인하세요."
             )
         else:
             self.status.set(f"오디오 장치 복원 완료: {devices[chosen][3]}")
@@ -1015,18 +1012,20 @@ class App:
         if self.running:
             return
         if not self.devices or self.device_combo.current() < 0:
-            messagebox.showerror("오디오", "장치를 먼저 선택하세요.")
+            # The Windows playback device can appear just after startup.
+            # Retry enumeration once rather than requiring a manual refresh.
+            self.refresh()
+        if not self.devices or self.device_combo.current() < 0:
+            messagebox.showerror("오디오", "사용 가능한 오디오 장치가 없습니다. Windows 출력 장치를 확인하세요.")
             return
         selected = self.devices[self.device_combo.current()]
         if self._audio_scan_busy:
             messagebox.showinfo("오디오 검사", "진행 중인 소리 찾기가 끝난 뒤 번역을 시작해 주세요.")
             return
-        # On a first launch (or when a saved device is disconnected), find
-        # the real active playback loopback once, without requiring a click on
-        # '소리 찾기'. Manual mic selections bypass automatic output scanning.
-        if selected[2] and self._needs_auto_source:
-            self.scan_audio(auto_start=True)
-            return
+        # Never gate the first translation on a 1-second loudness probe:
+        # the playback may still be silent when the user clicks Start.
+        # Capture the selected default/saved output immediately and wait for
+        # audio in the normal loop. '소리 찾기' remains a manual diagnostic.
         engine = self.engine.get()
         if engine not in ("argos", "google", "hymt"):
             messagebox.showerror("번역 엔진", "번역 엔진을 선택하세요.")
@@ -1063,7 +1062,9 @@ class App:
                 "결제 계정의 API 요금이 발생할 수 있습니다.\n"
                 "회사 보안 정책 및 녹음 동의 여부를 확인했나요?"):
                 return
-        self.persist()
+        # Starting confirms the visible source, so future launches restore it
+        # even if it was the Windows default on this very first run.
+        self.remember_selected_device()
         self.session_started_at = datetime.datetime.now()
         self.session_record_path = None
         self.session_engine = engine
