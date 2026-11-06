@@ -759,6 +759,48 @@ def strip_transcript_overlap(previous, current, language="en", max_words=16):
 
 
 
+def collapse_asr_restarts(text, max_repeats=2):
+    """Collapse only adjacent 3+ word repeats inside one Whisper result.
+
+    Example: 'we can make a We can make an exception' becomes
+    'we can make an exception'. Keep real repetitions separated by punctuation
+    and short one-word false-starts, which cannot be resolved confidently.
+    """
+    for _ in range(max_repeats):
+        tokens = list(_OVERLAP_WORD.finditer(text))
+        replacement = None
+        for length in range(min(6, len(tokens) // 2), 2, -1):
+            for first in range(len(tokens) - 2 * length + 1):
+                for gap in (0, 1):
+                    second = first + length + gap
+                    if second + length > len(tokens):
+                        continue
+                    a = [token.group().casefold()
+                         for token in tokens[first:first + length]]
+                    b = [token.group().casefold()
+                         for token in tokens[second:second + length]]
+                    if a != b:
+                        continue
+                    span = text[tokens[first].start():tokens[second + length - 1].end()]
+                    if re.search(r"[.!?;:,\n]", span):
+                        continue
+                    # Preserve the first phrase, discard intervening false
+                    # start and repeated prefix, preserve the newer continuation.
+                    replacement = (
+                        text[:tokens[first + length - 1].end()]
+                        + text[tokens[second + length - 1].end():]
+                    )
+                    break
+                if replacement is not None:
+                    break
+            if replacement is not None:
+                break
+        if replacement is None:
+            break
+        text = replacement
+    return text
+
+
 def choose_asr_beam_size(quality_mode, pending_chunks):
     """Favor completeness when ASR cannot keep pace with live capture.
 
@@ -1011,13 +1053,17 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
                 continue
             asr_seconds = time.monotonic() - before
             source_lang = metadata.language if language == "auto" else language
-            original = raw_original
+            cleaned_original = (
+                collapse_asr_restarts(raw_original)
+                if quality_mode and source_lang == "en" else raw_original
+            )
+            original = cleaned_original
             if quality_mode:
                 if previous_lang == source_lang:
                     original = strip_transcript_overlap(
-                        last_recognized_audio_text, raw_original, source_lang
+                        last_recognized_audio_text, cleaned_original, source_lang
                     )
-                last_recognized_audio_text = raw_original
+                last_recognized_audio_text = cleaned_original
                 # Feed only new recognized text back as bounded terminology
                 # context. A repeated hallucination must not be amplified.
                 if original:
