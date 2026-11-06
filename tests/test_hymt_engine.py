@@ -307,6 +307,26 @@ class HyMT2Tests(unittest.TestCase):
         self.assertNotIn("Unrecognized prior phrase.", next_prompt)
         self.assertTrue(next_prompt.endswith("We can make an exception this time."))
 
+    def test_summary_uses_local_backend_and_only_current_korean_passage(self):
+        backend = self.mod.HyMT2Backend("unused")
+        backend.port = 14811
+        backend.process = mock.MagicMock()
+        backend.process.poll.return_value = None
+        response = mock.MagicMock()
+        response.read.return_value = json.dumps({
+            "choices": [{"message": {"content": "핵심 내용: 결제 기한을 60일로 연장."}}]
+        }, ensure_ascii=False).encode("utf-8")
+        manager = mock.MagicMock()
+        manager.__enter__.return_value = response
+        with mock.patch.object(self.mod.urlrequest, "urlopen", return_value=manager) as opened:
+            result = backend.summarize_korean("결제 기한을 60일로 연장하기로 했습니다.")
+        self.assertIn("60일", result)
+        prompt = json.loads(opened.call_args.args[0].data)["messages"][0]["content"]
+        self.assertIn("요약", prompt)
+        self.assertIn("없는 내용을 추측하거나 만들어 내지 마세요", prompt)
+        self.assertIn("결제 기한을 60일로 연장하기로 했습니다.", prompt)
+        self.assertNotIn("PREVIOUS", prompt)
+
     def test_unsupported_language_does_not_send_requests(self):
         backend = self.mod.HyMT2Backend("unused")
         with self.assertRaisesRegex(RuntimeError, "영어 또는 일본어"):
