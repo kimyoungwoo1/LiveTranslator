@@ -1,4 +1,4 @@
-"""Audio selection survives restart; playback is auto-discovered only if no preference."""
+"""Audio selection persists and first-start capture never requires sound detection."""
 import sys
 import unittest
 from unittest import mock
@@ -54,7 +54,7 @@ class AudioSelectionTests(unittest.TestCase):
             app_core.App.refresh(app)
         self.assertEqual(app.device_combo.current(), 1)
         self.assertEqual(app.devices[1][3], "Razer Barracuda X")
-        self.assertFalse(app._needs_auto_source)
+        self.assertIn("Razer Barracuda X", app.status.set.call_args.args[0])
 
     def test_confirmed_choice_is_saved_on_selection(self):
         app = app_core.App.__new__(app_core.App)
@@ -64,13 +64,11 @@ class AudioSelectionTests(unittest.TestCase):
         ]
         app.device_combo = FakeCombo(1)
         app.settings = {}
-        app._needs_auto_source = True
         app.persist = mock.MagicMock()
         app_core.App.remember_selected_device(app)
         self.assertEqual(app.settings["audio_device"], {
             "name": "Razer Barracuda X", "loopback": True
         })
-        self.assertFalse(app._needs_auto_source)
         app.persist.assert_called_once()
 
     def test_auto_finder_chooses_only_audible_output_and_autostarts(self):
@@ -90,25 +88,16 @@ class AudioSelectionTests(unittest.TestCase):
         app.remember_selected_device.assert_called_once()
         self.assertEqual(app.root.after.call_args.args[0], 50)
 
-    def test_initial_start_initiates_finder_without_translation_worker(self):
+    def ready_app(self, devices, saved=None):
         app = app_core.App.__new__(app_core.App)
         app.running = False
-        app.devices = [("🔊 기본 출력 | 7.1", 1, True, "7.1")]
+        app.devices = devices
         app.device_combo = FakeCombo(0)
         app._audio_scan_busy = False
-        app._needs_auto_source = True
         app.scan_audio = mock.MagicMock()
-        app_core.App.start(app)
-        app.scan_audio.assert_called_once_with(auto_start=True)
-
-    def test_saved_output_does_not_scan_every_start(self):
-        app = app_core.App.__new__(app_core.App)
-        app.running = False
-        app.devices = [("🔊 출력 | Razer", 7, True, "Razer")]
-        app.device_combo = FakeCombo(0)
-        app._audio_scan_busy = False
-        app._needs_auto_source = False
-        app.scan_audio = mock.MagicMock()
+        app.settings = {"audio_device": saved} if saved else {}
+        app.persist = mock.MagicMock()
+        app.refresh = mock.MagicMock()
         app.engine = mock.MagicMock()
         app.engine.get.return_value = "argos"
         app.language = mock.MagicMock()
@@ -117,18 +106,80 @@ class AudioSelectionTests(unittest.TestCase):
         app.model.get.return_value = "base"
         app.seconds = mock.MagicMock()
         app.seconds.get.return_value = "3"
-        app.persist = mock.MagicMock()
-        app.stop_signal = None
         app.audio_meter = mock.MagicMock()
         app.audio_state = mock.MagicMock()
         app.start_btn = mock.MagicMock()
         app.stop_btn = mock.MagicMock()
         app.status = mock.MagicMock()
+        app.set_live_indicator = mock.MagicMock()
+        return app
+
+    def test_first_start_uses_default_output_without_sound_probe(self):
+        default = ("🔊 기본 출력 | Speakers (Realtek)", 12, True,
+                   "Speakers (Realtek)")
+        app = self.ready_app([default])
         with mock.patch.object(app_core.threading, "Thread") as thread:
             app_core.App.start(app)
         app.scan_audio.assert_not_called()
+        app.refresh.assert_not_called()
+        thread.assert_called_once()
+        args = thread.call_args.kwargs["args"]
+        self.assertEqual(args[0], default)
+        self.assertEqual(app.settings["audio_device"],
+                         {"name": "Speakers (Realtek)", "loopback": True})
+        app.persist.assert_called_once()
+        self.assertTrue(app.running)
+
+    def test_first_start_does_not_switch_to_other_output(self):
+        default = ("🔊 기본 출력 | Speakers", 12, True, "Speakers")
+        other = ("🔊 출력 | Headset", 27, True, "Headset")
+        app = self.ready_app([default, other])
+        app.device_combo.current(1)
+        with mock.patch.object(app_core.threading, "Thread") as thread:
+            app_core.App.start(app)
+        thread.assert_called_once()
+        self.assertEqual(thread.call_args.kwargs["args"][0], other)
+        self.assertEqual(app.settings["audio_device"]["name"], "Headset")
+        app.scan_audio.assert_not_called()
+
+    def test_saved_output_starts_without_probe_or_refresh(self):
+        source = ("🔊 출력 | Razer", 7, True, "Razer")
+        app = self.ready_app(
+            [source], saved={"name": "Razer", "loopback": True}
+        )
+        with mock.patch.object(app_core.threading, "Thread") as thread:
+            app_core.App.start(app)
+        app.scan_audio.assert_not_called()
+        app.refresh.assert_not_called()
         app.persist.assert_called_once()
         thread.assert_called_once()
+
+    def test_first_start_recovers_missing_enumeration_by_refresh(self):
+        source = ("🔊 기본 출력 | Speaker", 8, True, "Speaker")
+        app = self.ready_app([])
+        app.device_combo = FakeCombo(-1)
+
+        def reload_devices():
+            app.devices = [source]
+            app.device_combo.current(0)
+
+        app.refresh.side_effect = reload_devices
+        with mock.patch.object(app_core.threading, "Thread") as thread:
+            app_core.App.start(app)
+        app.refresh.assert_called_once()
+        thread.assert_called_once()
+        self.assertEqual(thread.call_args.kwargs["args"][0], source)
+
+    def test_no_devices_after_retry_shows_error_but_no_probe(self):
+        app = self.ready_app([])
+        app.device_combo = FakeCombo(-1)
+        with mock.patch.object(app_core.messagebox, "showerror") as alert, \
+             mock.patch.object(app_core.threading, "Thread") as thread:
+            app_core.App.start(app)
+        app.refresh.assert_called_once()
+        alert.assert_called_once()
+        thread.assert_not_called()
+        app.scan_audio.assert_not_called()
 
 
 if __name__ == "__main__":
