@@ -549,8 +549,26 @@ class App:
                                             style="LTCardMuted.TLabel")
         self.audio_meter_label.pack(side="left", fill="x", expand=True)
 
+        footer = ttk.Frame(outer, style="LT.TFrame")
+        footer.pack(side="bottom", fill="x")
+        ttk.Button(footer, text="EN 모델 설치",
+                   command=lambda: self.install_pack("en"),
+                   style="LT.TButton").pack(side="left", padx=(0, 5))
+        ttk.Button(footer, text="JA 모델 설치",
+                   command=lambda: self.install_pack("ja"),
+                   style="LT.TButton").pack(side="left", padx=(0, 5))
+        ttk.Button(footer, text="모델 진단", command=self.diagnose_models,
+                   style="LT.TButton").pack(side="left")
+        ttk.Button(footer, text="프로그램 종료", command=self.close,
+                   style="LTDanger.TButton").pack(side="right")
+        ttk.Button(footer, text="업데이트 확인", command=self.check_update,
+                   style="LT.TButton").pack(side="right", padx=(0, 7))
+        ttk.Button(footer, text="기록 폴더 열기",
+                   command=self.open_transcripts_folder,
+                   style="LT.TButton").pack(side="right", padx=(0, 7))
+
         transcript = ttk.Panedwindow(outer, orient="vertical")
-        transcript.pack(fill="both", expand=True, pady=(0, 10))
+        transcript.pack(fill="both", expand=True, pady=(0, 7))
 
         def transcript_pane(label_text):
             pane = ttk.Frame(transcript, style="LTCard.TFrame", padding=(13, 10))
@@ -575,24 +593,6 @@ class App:
         ko_pane, self.translated = transcript_pane("한국어 번역  /  Translation")
         transcript.add(orig_pane, weight=1)
         transcript.add(ko_pane, weight=1)
-
-        footer = ttk.Frame(outer, style="LT.TFrame")
-        footer.pack(fill="x")
-        ttk.Button(footer, text="EN 모델 설치",
-                   command=lambda: self.install_pack("en"),
-                   style="LT.TButton").pack(side="left", padx=(0, 5))
-        ttk.Button(footer, text="JA 모델 설치",
-                   command=lambda: self.install_pack("ja"),
-                   style="LT.TButton").pack(side="left", padx=(0, 5))
-        ttk.Button(footer, text="모델 진단", command=self.diagnose_models,
-                   style="LT.TButton").pack(side="left")
-        ttk.Button(footer, text="프로그램 종료", command=self.close,
-                   style="LTDanger.TButton").pack(side="right")
-        ttk.Button(footer, text="업데이트 확인", command=self.check_update,
-                   style="LT.TButton").pack(side="right", padx=(0, 7))
-        ttk.Button(footer, text="기록 폴더 열기",
-                   command=self.open_transcripts_folder,
-                   style="LT.TButton").pack(side="right", padx=(0, 7))
 
         self.overlay = tk.Toplevel(self.root)
         self.overlay.title("LiveTranslator 자막")
