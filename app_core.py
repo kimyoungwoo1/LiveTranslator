@@ -255,7 +255,8 @@ class App:
         self.mode = tk.StringVar(value="output" if (self.settings.get("audio_device") or {}).get("loopback", True) else "input")
         self.device = tk.StringVar()
         self.language = tk.StringVar(value=self.settings.get("language", "en"))
-        self.model = tk.StringVar(value=self.settings.get("model", "base"))
+        # v0.6.37 migrates manual ASR selection to automatic, with an optional override.
+        self.model = tk.StringVar(value="auto" if self.settings.get("model") in ("tiny", "base", "small", None, "auto") else "auto")
         self.seconds = tk.StringVar(value=str(self.settings.get("seconds", 3)))
         self.save_enabled = tk.BooleanVar(value=self.settings.get("save", False))
         self.engine = tk.StringVar(value=self.settings.get("engine", "hymt"))
@@ -474,10 +475,7 @@ class App:
         ttk.Combobox(row, values=["en", "ja", "ko", "auto"], state="readonly",
                      textvariable=self.language, width=8,
                      style="LT.TCombobox").pack(side="left", padx=(0, 22))
-        ttk.Label(row, text="Whisper 모델", style="LTCardMuted.TLabel").pack(side="left", padx=(0, 7))
-        ttk.Combobox(row, values=["tiny", "base", "small"], state="readonly",
-                     textvariable=self.model, width=9,
-                     style="LT.TCombobox").pack(side="left", padx=(0, 22))
+        ttk.Label(row, text="음성 인식 · 자동 최적화", style="LTCardMuted.TLabel").pack(side="left", padx=(0, 22))
         ttk.Label(row, text="인식 간격", style="LTCardMuted.TLabel").pack(side="left", padx=(0, 7))
         ttk.Combobox(row, values=["2", "3", "4", "5", "6", "8"],
                      state="readonly", textvariable=self.seconds, width=6,
@@ -504,6 +502,18 @@ class App:
         self.engine_tools_toggle.pack(anchor="w", pady=(6, 0))
         tools = ttk.Frame(engine_card, style="LTCard.TFrame")
         self.engine_tools_frame = tools
+        asr_row = ttk.Frame(tools, style="LTCard.TFrame")
+        asr_row.pack(fill="x", pady=(7, 6))
+        ttk.Label(asr_row, text="음성 인식 (고급)", style="LTCardMuted.TLabel").pack(side="left", padx=(0, 12))
+        ttk.Combobox(
+            asr_row, values=["auto", "base", "small", "tiny"], state="readonly",
+            textvariable=self.model, width=10, style="LT.TCombobox"
+        ).pack(side="left", padx=(0, 12))
+        ttk.Label(
+            asr_row, text="auto: 실시간 반응을 우선하며 대기열에 맞춰 인식 연산량을 조절합니다.",
+            style="LTCardMuted.TLabel"
+        ).pack(side="left")
+
         self.hym_install_btn = ttk.Button(
             tools, text="Hy-MT2 설치", command=self.install_hymt, style="LT.TButton"
         )
@@ -1246,6 +1256,15 @@ class App:
         except Exception as exc:
             messagebox.showerror("Google API 키", f"키 저장 실패: {exc}")
 
+    @staticmethod
+    def _effective_asr_model(requested):
+        """Never download a heavier ASR model merely because the user pressed Start.
+
+        Live throughput already controls decoding effort from the audio backlog;
+        switching model weights mid-conversation would stall subtitles.
+        """
+        return requested if requested in ("tiny", "base", "small") else "base"
+
     def diagnose_models(self):
         """Check selected speech and translation models without downloading new ones."""
         if self.running:
@@ -1258,7 +1277,7 @@ class App:
         if self._model_check_busy:
             return
         self._model_check_busy = True
-        model_name = self.model.get()
+        model_name = self._effective_asr_model(self.model.get())
         lang = self.language.get()
         engine = self.engine.get()
         self.status.set("모델 진단 중 · 새 모델을 다운로드하지 않습니다...")
@@ -1413,7 +1432,7 @@ class App:
         self.start_btn.config(state="disabled")
         self.stop_btn.config(state="normal")
         self.status.set("음성 인식 모델을 초기화하는 중...")
-        self.worker = threading.Thread(target=self.capture_and_translate, args=(selected, self.language.get(), self.model.get(), int(self.seconds.get()), engine, api_key), daemon=True)
+        self.worker = threading.Thread(target=self.capture_and_translate, args=(selected, self.language.get(), self._effective_asr_model(self.model.get()), int(self.seconds.get()), engine, api_key), daemon=True)
         self.worker.start()
 
     def stop(self):
@@ -1666,7 +1685,7 @@ class App:
         if started is not None and self.running:
             seconds_waiting = int(time.monotonic() - started)
             if seconds_waiting >= 8:
-                model = self._model_loading_name or self.model.get()
+                model = self._model_loading_name or self._effective_asr_model(self.model.get())
                 detail = (
                     "최초 다운로드 또는 캐시 확인 중일 수 있습니다"
                     if seconds_waiting < 90 else
