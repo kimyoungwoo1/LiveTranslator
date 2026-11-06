@@ -708,7 +708,7 @@ def _hym_current_text_guidance(text, source_lang):
         if re.search(r"\b(?:thanks|thank you|appreciate|customer|business)\b", text, re.IGNORECASE):
             return "Here, 'it works both ways' means both sides benefit, not mechanical bidirectionality. "
     if re.search(r"\bkeep an eye out for it\b", text, re.IGNORECASE):
-        return "Here, 'keep an eye out' means to expect a promised item or message, not physically stare at it. "
+        return "Here, 'keep an eye out' means to watch for or expect a promised item or message, not physically stare at it. "
     return ""
 
 
