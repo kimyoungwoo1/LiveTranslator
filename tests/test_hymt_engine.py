@@ -163,6 +163,28 @@ class HyMT2Tests(unittest.TestCase):
         self.assertTrue(body["messages"][0]["content"].endswith("60 days."))
         self.assertFalse(body["stream"])
 
+    def test_translation_prompt_preserves_negation_without_past_speech(self):
+        backend = self.mod.HyMT2Backend("unused")
+        backend.port = 14811
+        backend.process = mock.MagicMock()
+        backend.process.poll.return_value = None
+        response = mock.MagicMock()
+        response.read.return_value = json.dumps({
+            "choices": [{"message": {"content": "결제 기한을 연장할 수 있을지 모르겠습니다."}}]
+        }).encode("utf-8")
+        manager = mock.MagicMock()
+        manager.__enter__.return_value = response
+        original = "I'm not sure if I can do that, Andrea."
+        with mock.patch.object(self.mod.urlrequest, "urlopen", return_value=manager) as opened:
+            backend.translate(original, "en")
+        prompt = json.loads(opened.call_args.args[0].data)["messages"][0]["content"]
+        self.assertTrue(prompt.endswith(original))
+        self.assertIn("Preserve negation", prompt)
+        self.assertIn("Do not guess or add missing speech.", prompt)
+        self.assertIn("natural, polite Korean", prompt)
+        self.assertNotIn("PREVIOUS", prompt)
+        self.assertNotIn("CURRENT (translate this only)", prompt)
+
     def test_never_sends_previous_utterance_after_sequential_translations(self):
         """Regression: v0.6.23 repeated old Korean lines instead of translating CURRENT."""
         backend = self.mod.HyMT2Backend("unused")
