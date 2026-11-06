@@ -385,7 +385,6 @@ class App:
         mode_card.grid_columnconfigure(2, weight=1, uniform="mode")
         intro = tk.Frame(mode_card, bg=colors["card"], width=165)
         intro.grid(row=0, column=0, sticky="nw", padx=(2, 12), pady=(8, 0))
-        intro.grid_propagate(False)
         tk.Label(intro, text="◉  사용 모드", bg=colors["card"], fg=colors["text"],
                  font=("Malgun Gothic", 12, "bold")).pack(anchor="w")
         tk.Label(intro, text="어떤 소리를 번역할까요?", bg=colors["card"],
@@ -455,7 +454,7 @@ class App:
         self.device_combo.bind("<<ComboboxSelected>>", self.remember_selected_device)
         ttk.Button(row, text="↻ 새로고침", command=self.refresh,
                    style="LT.TButton").pack(side="left", padx=(0, 6))
-        ttk.Button(row, text="⌕ 소리 찾기", command=self.scan_audio,
+        ttk.Button(row, text="소리 찾기", command=self.scan_audio,
                    style="LT.TButton").pack(side="left")
         ttk.Separator(source, orient="horizontal").pack(fill="x", pady=(0, 10))
         row = tk.Frame(source, bg=colors["card"])
