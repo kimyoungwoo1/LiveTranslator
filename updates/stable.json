@@ -1,15 +1,15 @@
 {
-  "version": "0.6.22",
+  "version": "0.6.23",
   "min_bootstrap": "0.6.0",
-  "notes": "Save each translation run in ONE timestamped TXT file directly inside transcripts, with paired [원문] and [한국어 번역] blocks per completed translation. Preserve separate files between runs, older daily TXT and prior two-file session directories. 기록 폴더 열기 still opens Windows Explorer. No new EXE or AI models.",
+  "notes": "Hy-MT2 offline translation: use up to 320 characters of previous dialogue to disambiguate current English/Japanese speech, especially nonliteral business idioms, but output Korean for the CURRENT phrase only. Context stays in local llama-server, is reset on session/language changes, and never affects Argos/Google. Does not repair missing Whisper audio. Windows syntax and regression tests passed before release. No new EXE or model download.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.22/app_core.py",
+      "path": "updates/v0.6.23/app_core.py",
       "git_sha1": "878a26b351e20539fb4d55ec65646868834f0b83"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.22/streaming_pipeline.py",
-      "git_sha1": "148cd75fbe3736df75fdeaf472bcb4770b820737"
+      "path": "updates/v0.6.23/streaming_pipeline.py",
+      "git_sha1": "a591f169a87650b11e0bb5f05847e7e86d20dd6a"
     }
   }
 }
