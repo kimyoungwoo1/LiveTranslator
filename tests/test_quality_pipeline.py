@@ -124,7 +124,7 @@ class QualityTests(unittest.TestCase):
         )
         self.assertEqual(
             buf.add("what I can do. Yes.", "en", 11),
-            [("That sounds good. Hold on, Andrea. Let me see. what I can do. Yes.", "en")]
+            [("That sounds good. Hold on, Andrea. Let me see what I can do. Yes.", "en")]
         )
 
     def test_split_it_works_both_ways_is_one_translation(self):
@@ -135,7 +135,7 @@ class QualityTests(unittest.TestCase):
         )
         self.assertEqual(
             buf.add("both ways. Thanks again, Junko.", "en", 9),
-            [("And we appreciate your business, Andrea. It works. both ways. Thanks again, Junko.", "en")]
+            [("And we appreciate your business, Andrea. It works both ways. Thanks again, Junko.", "en")]
         )
 
     def test_completed_questions_translate_immediately(self):
