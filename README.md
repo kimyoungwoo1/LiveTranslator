@@ -262,3 +262,22 @@ Retest on the official British Council 'A phone call from a customer' recording 
 - Preserve the 0.7-second audio overlap, saved transcripts and existing model runtime. No model or EXE redownload.
 
 This is a conservative sentence-boundary heuristic, not a perfect grammar/parser, and is not guaranteed to repair omissions such as 'extend it to 60 days' or misheard names. Repeated real phrases without punctuation can rarely be collapsed; assess the English transcript against the known script, and keep an eye on the audio skip counters. Actual Windows live ASR and per-subtitle latency are not yet verified for this patch.
+
+## v0.6.22 — one paired TXT per translation session
+
+Each session now creates **one** timestamped TXT file directly under `%LOCALAPPDATA%\\LiveTranslator\\transcripts` (for example `2026-11-06_12-31-25_Hy-MT2_en.txt`). This preserves separation between different recording runs without requiring two files or nested folders for each new run.
+
+The file stores the *same assembled source sentence that the chosen engine received* next to its Korean translation:
+
+    [12:31:25]
+    [원문]
+    Can you extend the payment terms to 60 days?
+    [한국어 번역]
+    결제 기한을 60일로 연장해 주실 수 있나요?
+    ------------------------------------------------
+
+Text is appended when a translation finishes, ensuring each English/Korean pair stays together despite asynchronous recognition and translation. No daily aggregate file is written. Records that never reached translation (for example after an interrupted session or failed translation) are not written as paired entries. Session filenames use exclusive file creation to avoid overwriting previous sessions.
+
+Prior daily TXT files and the two-file session directories from v0.6.20–v0.6.21 are **left untouched**. The **기록 폴더 열기** button continues to open the directory in Windows Explorer.
+
+Update via **업데이트 확인 → v0.6.22 → restart**. No new executable or model download required.
