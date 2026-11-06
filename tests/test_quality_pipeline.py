@@ -26,6 +26,57 @@ class QualityTests(unittest.TestCase):
     def setUpClass(cls):
         cls.pipeline = load_pipeline()
 
+    def test_ellipsis_is_incomplete_and_next_chunk_completes_order(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        self.assertEqual(
+            buf.add("Actually, I also want to place another new...", "en", 0), []
+        )
+        self.assertEqual(
+            buf.add("order. The same size as last time.", "en", 4),
+            [("Actually, I also want to place another new order. The same size as last time.", "en")]
+        )
+
+    def test_repeated_audio_prefix_is_not_repeated_in_transcript(self):
+        dedup = self.pipeline.strip_transcript_overlap
+        self.assertEqual(
+            dedup(
+                "We can make an exception this time.",
+                "an exception this time. That's great, Junko.",
+            ),
+            "That's great, Junko."
+        )
+        self.assertEqual(
+            dedup(
+                "Please extend the payment terms to 60 days.",
+                "to 60 days. Thanks for your help.",
+            ),
+            "Thanks for your help."
+        )
+
+    def test_genuine_repeated_words_survive(self):
+        dedup = self.pipeline.strip_transcript_overlap
+        self.assertEqual(dedup("Yes.", "Yes, yes.", "en"), "Yes, yes.")
+        self.assertEqual(dedup("", "Hello.", "en"), "Hello.")
+        self.assertEqual(
+            dedup("こんにちは。", "こんにちは。", "ja"), "こんにちは。"
+        )
+
+    def test_no_unsafe_overlap_dedup_without_adjacent_match(self):
+        dedup = self.pipeline.strip_transcript_overlap
+        self.assertEqual(
+            dedup("I would like to make another order.",
+                  "A new order should be sent today."),
+            "A new order should be sent today."
+        )
+
+    def test_overlapping_audio_is_used_only_in_quality_mode(self):
+        source = (Path(__file__).resolve().parent.parent / "streaming_pipeline.py").read_text(encoding="utf-8")
+        self.assertIn("QUALITY_OVERLAP_SECONDS = 0.7", source)
+        self.assertIn("block, overlap_tail = add_audio_context(", source)
+        self.assertIn("last_recognized_audio_text = raw_original", source)
+        self.assertIn("strip_transcript_overlap(", source)
+        self.assertIn("if not quality_mode or block.size == 0:", source)
+
     def test_english_fragments_form_one_sentence(self):
         buf = self.pipeline.SentenceBuffer(3)
         self.assertEqual(buf.add("We should", "en", 0), [])
