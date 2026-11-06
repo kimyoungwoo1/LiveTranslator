@@ -1,14 +1,14 @@
 {
-  "version": "0.6.19",
+  "version": "0.6.20",
   "min_bootstrap": "0.6.0",
-  "notes": "Emergency hotfix for v0.6.18 update failure: repair a truncated SentenceBuffer terminal regular-expression string at streaming_pipeline.py line 24. Preserve 0.7-second Whisper overlap, sentence joining, adaptive beam settings and all three translation engines. No new EXE or models required. If v0.6.18 failed to apply, retry Check Updates and install v0.6.19.",
+  "notes": "TXT recording usability: every translation run has its own dated/session/provider folder with separate timestamped 원문.txt and 한국어_번역.txt files; preserve existing daily TXT history. '기록 폴더 열기' opens Windows Explorer directly. Can be applied using the in-app code updater; no new EXE or AI models.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.19/app_core.py",
-      "git_sha1": "c1198c18ebdd9921acd3c2d33c6905448527d1a1"
+      "path": "updates/v0.6.20/app_core.py",
+      "git_sha1": "d29918787f53724e108eeb84bc4b50ff20afdabd"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.19/streaming_pipeline.py",
+      "path": "updates/v0.6.20/streaming_pipeline.py",
       "git_sha1": "53d79dbf815024143ceb6062390c21be532143f9"
     }
   }
