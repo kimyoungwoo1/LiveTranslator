@@ -1,0 +1,127 @@
+{
+  "description": "Original, manually authored English-Korean comparison cases based on business-dialog and technical terminology; noisy cases simulate ASR errors and have no scored reference.",
+  "clean": [
+    {
+      "id": "payment_30_60",
+      "group": "business",
+      "en": "We normally require payment within 30 days, but could you extend the deadline to 60 days?",
+      "ko": "보통 30일 이내에 결제해야 하지만 결제 기한을 60일까지 연장해 주실 수 있나요?"
+    },
+    {
+      "id": "cash_flow",
+      "group": "business",
+      "en": "Our cash flow is tight this quarter because several customers have delayed their payments.",
+      "ko": "여러 고객이 대금 지급을 미뤄서 이번 분기 자금 사정이 빠듯합니다."
+    },
+    {
+      "id": "order_invoice",
+      "group": "business",
+      "en": "I am calling about the invoice for our latest order, not about the delivery.",
+      "ko": "배송이 아니라 최근 주문 건의 청구서 때문에 전화드렸습니다."
+    },
+    {
+      "id": "new_order",
+      "group": "business",
+      "en": "We would like to place another order of the same size as last time.",
+      "ko": "지난번과 같은 규모로 주문을 하나 더 넣고 싶습니다."
+    },
+    {
+      "id": "pay_delivery",
+      "group": "business",
+      "en": "Our client will pay as soon as the new order is delivered.",
+      "ko": "새 주문 물품이 배송되는 즉시 고객사가 대금을 지급할 예정입니다."
+    },
+    {
+      "id": "exception",
+      "group": "business",
+      "en": "I think we can make an exception this time, but we cannot change our standard policy.",
+      "ko": "이번에는 예외적으로 처리해 드릴 수 있지만 표준 정책을 변경할 수는 없습니다."
+    },
+    {
+      "id": "both_ways",
+      "group": "idiom",
+      "en": "We appreciate your business, and I am glad this arrangement works both ways.",
+      "ko": "저희와 거래해 주셔서 감사하며 이번 합의가 서로에게 도움이 되어 기쁩니다."
+    },
+    {
+      "id": "keep_eye",
+      "group": "idiom",
+      "en": "Please send the updated purchase order by email. I will keep an eye out for it.",
+      "ko": "수정된 구매 주문서를 이메일로 보내 주세요. 도착하는지 확인하겠습니다."
+    },
+    {
+      "id": "hold_on",
+      "group": "idiom",
+      "en": "Hold on for a moment while I check what our finance team can approve.",
+      "ko": "재무팀에서 어떤 조건을 승인할 수 있는지 확인하는 동안 잠시 기다려 주세요."
+    },
+    {
+      "id": "favour",
+      "group": "idiom",
+      "en": "I have a favour to ask: could we discuss more flexible payment terms?",
+      "ko": "부탁드릴 일이 있습니다. 결제 조건을 좀 더 유연하게 조정할 수 있을까요?"
+    },
+    {
+      "id": "financial_amount",
+      "group": "number",
+      "en": "The company reported losses of nearly six billion euros in the third quarter.",
+      "ko": "그 회사는 3분기에 거의 60억 유로의 손실을 기록했다고 발표했습니다."
+    },
+    {
+      "id": "thousand_units",
+      "group": "number",
+      "en": "The shipment contains 2,500 units, and 150 of them need to be replaced.",
+      "ko": "배송 물량은 2,500개이며 그중 150개는 교체해야 합니다."
+    },
+    {
+      "id": "technical_network",
+      "group": "technical",
+      "en": "The application cannot reach the server because DNS resolution is failing.",
+      "ko": "DNS 이름 확인에 실패하고 있어 애플리케이션이 서버에 연결하지 못합니다."
+    },
+    {
+      "id": "technical_security",
+      "group": "technical",
+      "en": "Before deployment, check the firewall rules and confirm that the connector is healthy.",
+      "ko": "배포하기 전에 방화벽 규칙을 점검하고 커넥터 상태가 정상인지 확인하세요."
+    },
+    {
+      "id": "colloquial",
+      "group": "conversation",
+      "en": "That sounds good to me. Thanks again for helping us work through the problem.",
+      "ko": "저도 좋습니다. 문제를 함께 해결할 수 있도록 도와주셔서 다시 한번 감사드립니다."
+    },
+    {
+      "id": "mixed_compound",
+      "group": "number",
+      "en": "Our first invoice was for 1.2 million euros, and the second was for 350,000 euros.",
+      "ko": "첫 번째 청구서는 120만 유로였고 두 번째 청구서는 35만 유로였습니다."
+    }
+  ],
+  "noisy": [
+    {
+      "id": "misheard_cashflow",
+      "en": "Each floor problem will be solved after this new order is delivered."
+    },
+    {
+      "id": "misheard_favour",
+      "en": "The invoice and the payment terms, I need a favor."
+    },
+    {
+      "id": "fragment",
+      "en": "On the payment terms. I know they are usually 30 days, but we are having some cash flow problems."
+    },
+    {
+      "id": "misheard_name",
+      "en": "Hello? Junco Maurice. Speaking, how can I help you?"
+    },
+    {
+      "id": "partial_order",
+      "en": "Actually, I also want to place another new order. The same size order as last time."
+    },
+    {
+      "id": "misheard_idiom",
+      "en": "Great. And I'll email you the new order. Thanks. I'll keep an eye out."
+    }
+  ]
+}
