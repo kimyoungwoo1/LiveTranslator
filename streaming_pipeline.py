@@ -115,6 +115,20 @@ class SentenceBuffer:
         # even if ASR took longer than max_age. It never waits indefinitely:
         # the next utterance or silent flush closes the buffered sentence.
         self.awaiting_continuation = should_hold
+        if should_hold and language == "en":
+            # Translate fully completed sentences right away; only the short
+            # unfinished tail waits for the next audio chunk.
+            boundaries = list(re.finditer(r"[.!?]\s+(?=[A-Z])", self.text))
+            if boundaries:
+                split = boundaries[-1]
+                complete = self.text[:split.start() + 1].strip()
+                pending_tail = self.text[split.end():].strip()
+                if complete and pending_tail:
+                    results.append((complete, language))
+                    self.text = pending_tail
+                    self.first_at = now
+                    self.count = 1
+                    self.last_fragment = pending_tail
         if ((not unfinished and not should_hold and self.TERMINAL.search(self.text)) or
                 len(self.text) >= self.max_chars or
                 self.count >= self.max_fragments or
