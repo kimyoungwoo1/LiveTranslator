@@ -117,6 +117,20 @@ class QualityTests(unittest.TestCase):
         self.assertEqual(buf.flush(), ("partial phrase", "en"))
         self.assertIsNone(buf.flush())
 
+    def test_beam_size_adapts_to_cpu_backlog(self):
+        decide = self.pipeline.choose_asr_beam_size
+        self.assertEqual(decide(True, 0), 5)
+        self.assertEqual(decide(True, 1), 5)
+        self.assertEqual(decide(True, 2), 3)
+        self.assertEqual(decide(True, 3), 3)
+        self.assertEqual(decide(True, 4), 2)
+        self.assertEqual(decide(False, 4), 1)
+
+    def test_pipeline_is_not_accidentally_duplicated(self):
+        source = (Path(__file__).resolve().parent.parent / "streaming_pipeline.py").read_text(encoding="utf-8")
+        self.assertEqual(source.count("def run_stream("), 1)
+        self.assertEqual(source.count("def resolve_capture_device("), 1)
+
     def test_quality_waits_for_pauses_after_minimum_context(self):
         ready = self.pipeline.should_finalize_audio
         rate = 16000
@@ -140,7 +154,7 @@ class QualityTests(unittest.TestCase):
     def test_quality_asr_uses_beam_five_and_bounded_context(self):
         path = Path(__file__).resolve().parent.parent / "streaming_pipeline.py"
         text = path.read_text(encoding="utf-8")
-        self.assertIn("beam_size=5 if quality_mode else 1", text)
+        self.assertIn("beam_size=choose_asr_beam_size(quality_mode, pending.qsize())", text)
         self.assertIn("initial_prompt=prompt", text)
         self.assertIn("recent_transcript[-140:]", text)
         self.assertIn('recent_transcript = ""', text)
