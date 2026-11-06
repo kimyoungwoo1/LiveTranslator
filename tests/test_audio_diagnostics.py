@@ -23,7 +23,7 @@ class AudioDiagnosticsTests(unittest.TestCase):
         pipe = (ROOT / "streaming_pipeline.py").read_text(encoding="utf-8")
         self.assertIn("rms < 0.0005", pipe)
         self.assertIn("loudest * 0.04", pipe)
-        self.assertIn("mono = strongest", pipe)
+        self.assertIn("return multi[:, int(np.argmax(power))]", pipe)
         self.assertIn("음성 인식 결과가 없습니다", pipe)
 
     def test_engine_selection_retained(self):
