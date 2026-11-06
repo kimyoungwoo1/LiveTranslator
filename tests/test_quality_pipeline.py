@@ -117,6 +117,62 @@ class QualityTests(unittest.TestCase):
         self.assertEqual(chunk, [1, 2, 3])
         self.assertEqual(tail, [])
 
+    def test_split_let_me_see_is_reassembled_for_translation(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        self.assertEqual(
+            buf.add("That sounds good. Hold on, Andrea. Let me see.", "en", 0), []
+        )
+        self.assertEqual(
+            buf.add("what I can do. Yes.", "en", 11),
+            [("That sounds good. Hold on, Andrea. Let me see. what I can do. Yes.", "en")]
+        )
+
+    def test_split_it_works_both_ways_is_one_translation(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        self.assertEqual(
+            buf.add("And we appreciate your business, Andrea. It works.", "en", 0),
+            []
+        )
+        self.assertEqual(
+            buf.add("both ways. Thanks again, Junko.", "en", 9),
+            [("And we appreciate your business, Andrea. It works. both ways. Thanks again, Junko.", "en")]
+        )
+
+    def test_completed_questions_translate_immediately(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        self.assertEqual(
+            buf.add("Can you send me a quick email confirmation?", "en", 0),
+            [("Can you send me a quick email confirmation?", "en")]
+        )
+
+    def test_new_utterance_does_not_merge_with_unfinished_guess(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        self.assertEqual(buf.add("Let me see.", "en", 0), [])
+        self.assertEqual(
+            buf.add("Everything arrived okay.", "en", 4),
+            [("Let me see.", "en"), ("Everything arrived okay.", "en")]
+        )
+
+    def test_safe_in_chunk_restart_cleanup(self):
+        repair = self.pipeline.collapse_asr_restarts
+        self.assertEqual(
+            repair("Yes, I think we can make a We can make an exception this time."),
+            "Yes, I think we can make an exception this time."
+        )
+        self.assertEqual(
+            repair("I see. So you So your cash flow problem will be solved."),
+            "I see. So you So your cash flow problem will be solved."
+        )
+        self.assertEqual(
+            repair("We can make. We can make an exception."),
+            "We can make. We can make an exception."
+        )
+
+    def test_repetition_of_short_words_is_preserved(self):
+        repair = self.pipeline.collapse_asr_restarts
+        self.assertEqual(repair("Yes, yes, thank you."), "Yes, yes, thank you.")
+        self.assertEqual(repair("I I think so."), "I I think so.")
+
     def test_english_fragments_form_one_sentence(self):
         buf = self.pipeline.SentenceBuffer(3)
         self.assertEqual(buf.add("We should", "en", 0), [])
