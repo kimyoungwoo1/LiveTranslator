@@ -293,3 +293,13 @@ The change is designed to improve naturalness; **it is not yet evidence that Hy-
 Importantly, v0.6.22's combined TXT contains only **completed source/translation pairs**. To diagnose true audio/ASR loss, compare the on-screen source transcript with the known source recording and the live **음성 누락** / **번역 누락** counters. Missing TXT lines alone do not prove that Whisper missed the sound.
 
 Update via **업데이트 확인 → v0.6.23 → restart**. No EXE or model redownload. All other translation and audio settings remain the same.
+
+## v0.6.24 — urgent Hy-MT2 translation-context rollback
+
+**Why:** User recordings in v0.6.23 showed a severe regression: Korean subtitles translated prior utterances instead of the current English, including payment extensions to 60 days, exception approval and email confirmation questions. The previous-source context placed in the v0.6.23 Hy-MT2 prompt caused the small CPU model to lose track of what to translate. This is more serious than awkward phrasing.
+
+**What changes:** Hy-MT2 now sends **only the current source utterance** to the existing local llama-server. It restores the isolated per-utterance translation prompt from v0.6.22 and removes all stored previous-utterance history. Every request stands alone; completed Korean subtitles remain paired with their own source in one TXT per session. Existing overlap-based Whisper ASR, Argos, Google, Hy-MT2 runtime/model, saved settings and logging are unchanged.
+
+**Validation:** Windows GitHub Actions `Verify update code (no EXE)` run 42170041994 passed the syntax and full regression suite, including a new test that feeds successive business-call lines and confirms earlier lines are not included in the next Hy-MT2 prompt. This is a **code-level** test, not a real model inference benchmark: the model may still mistranslate ambiguous text, but the previous-utterance contamination pathway is gone.
+
+**Install:** **업데이트 확인 → v0.6.24 → restart**. No new EXE/model download needed. If a live retest continues to show wrong-line translations, compare the source/translation pairs against audio and report the input line and timestamp. Do not re-enable broad prior-dialogue prompting as a quick fix.
