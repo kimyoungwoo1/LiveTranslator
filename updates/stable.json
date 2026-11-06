@@ -1,15 +1,15 @@
 {
-  "version": "0.6.35",
+  "version": "0.6.36",
   "min_bootstrap": "0.6.0",
-  "notes": "Carefully improve the translation stage after comparing actual English meeting source with LiveTranslator output. When English says invoice, translate as Korean 청구서 rather than 영수증 with correct grammatical particles; clarify extension of payment terms as a deadline extension in local Hy-MT2 guidance. These changes are gated by current source speech and do not guess missing Whisper words. Existing user-selected Whisper base/small model, realtime audio processing, offline AI summary, transcripts and UI remain unchanged. Windows syntax and 129 regression tests passed; Whisper misrecognitions remain dependent on audio and selected ASR model.",
+  "notes": "Whisper small/base first-run model initialization now reports selected model, elapsed time, and that an unseen Hugging Face download/cache check may be underway; model_loaded clears the indicator and actual errors remain visible. Avoid falsely claiming download progress. Also correct additional source-gated Korean business idiom mistranslations ('양방향으로 잘 작동해요' for standalone 'It works both ways', '그걸 기대하며 지켜볼게요' for 'keep an eye out for it') while preserving literal software bidirectional descriptions. No model replacement, EXE or new dependencies. Windows syntax and full regression tests passed.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.35/app_core.py",
-      "git_sha1": "e7ae9104e891aca0298363f3aa4c03a31da5c152"
+      "path": "updates/v0.6.36/app_core.py",
+      "git_sha1": "fe35638f5a56dc5f69e1356f4e519398478a9fe3"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.35/streaming_pipeline.py",
-      "git_sha1": "112590a7d7f48618a9360943a3532745704755c6"
+      "path": "updates/v0.6.36/streaming_pipeline.py",
+      "git_sha1": "55c733cc8137119e7cc87728ea8793d38cda6f5b"
     }
   }
 }
