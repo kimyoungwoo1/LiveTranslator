@@ -53,7 +53,7 @@ class SentenceBuffer:
         r"i'm not|i am not|need an extension|"
         # Whisper can put a false period between 'some cash' and 'flow
         # problems'. Hold this narrowly defined noun phrase, not all 'cash'.
-        r"(?:some|our|your|their)\s+cash|"
+        r"(?:some|our|your|their|own)\s+cash|"
         r"(?:a|an|the|and|or|but|because|if|to|of|for|with|"
         r"from|our|your|their|after|before))\s*[.!?]?\s*$",
         re.IGNORECASE,
@@ -707,6 +707,12 @@ def _hym_current_text_guidance(text, source_lang):
     if re.search(r"\bit works both ways\b", text, re.IGNORECASE):
         if re.fullmatch(r"\s*it works both ways[.!?]?\s*", text, re.IGNORECASE) or re.search(r"\b(?:appreciate|customer|business|patronage)\b", text, re.IGNORECASE) or re.match(r"^\s*it works both ways[.!?]?\s*(?:thanks|thank you)\b", text, re.IGNORECASE):
             return "Here, 'it works both ways' means both sides benefit, not mechanical bidirectionality. "
+    if re.search(r"\b(?:need|ask|have)\s+(?:a\s+)?favou?r\b", text, re.IGNORECASE):
+        return "A 'favor' is a request for help: render 'I need a favor' as '부탁 하나 드리고 싶어요', not as offering help. "
+    if re.search(r"\ba favou?r\?\s*", text, re.IGNORECASE):
+        return "In a dialogue, 'A favor?' means '부탁이라고요?' rather than 'I am helping you'. "
+    if re.search(r"\b(?:from|at)\s+Red Band\b", text, re.IGNORECASE):
+        return "Red Band is a business proper name: preserve it as '레드 밴드', not its literal colors. "
     if re.search(r"\bkeep an eye out for it\b", text, re.IGNORECASE):
         return "Here, 'keep an eye out' means to watch for or expect a promised item or message, not physically stare at it. "
     if re.search(r"\binvoice\b", text, re.IGNORECASE):
@@ -727,6 +733,13 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
     if source_lang != "en":
         return korean
     fixed = korean
+    # Correct only clearly inverted roles, without inventing absent speech.
+    if re.search(r"\bI need a favou?r\b", source, re.IGNORECASE):
+        fixed = re.sub(r"도와줄 일이 있어요", "부탁 하나 드리고 싶어요", fixed)
+    if re.search(r"\bA favou?r\?", source, re.IGNORECASE):
+        fixed = re.sub(r"도와주시는 거예요\?", "부탁이라고요?", fixed)
+    if re.search(r"\b(?:from|at)\s+Red Band\b", source, re.IGNORECASE):
+        fixed = re.sub(r"빨간 밴드", "레드 밴드", fixed)
     if (re.search(r"\binvoice\b", source, re.IGNORECASE)
             and not re.search(r"\b(?:receipt|receipts)\b", source, re.IGNORECASE)):
         # English invoice means a request for payment. Only fix this clear
