@@ -207,6 +207,59 @@ class QualityTests(unittest.TestCase):
         self.assertEqual(repair("Yes, yes, thank you."), "Yes, yes, thank you.")
         self.assertEqual(repair("I I think so."), "I I think so.")
 
+    def test_bounded_long_chunk_keeps_unfinished_tail_for_next_audio(self):
+        """From user's call: 'cashflow prop' / 'problem will be solved...'."""
+        buf = self.pipeline.SentenceBuffer(3)
+        buf.max_chars = 70
+        self.assertEqual(
+            buf.add(
+                "This is a new order. The customer pays on delivery. "
+                "So your cashflow prop", "en", 0,
+            ),
+            [("This is a new order. The customer pays on delivery.", "en")],
+        )
+        self.assertEqual(buf.text, "So your cashflow prop")
+        self.assertEqual(
+            buf.add("problem will be solved after the new order is delivered.", "en", 4),
+            [("So your cashflow problem will be solved after the new order is delivered.", "en")],
+        )
+
+    def test_cut_word_join_does_not_rewrite_complete_words(self):
+        fix = self.pipeline.SentenceBuffer._carry_incomplete_word
+        self.assertEqual(
+            fix("So your cashflow prop", "problem will be solved.", "en"),
+            ("So your cashflow", "problem will be solved."),
+        )
+        self.assertEqual(
+            fix("The contract ends with prop.", "property is yours.", "en"),
+            ("The contract ends with prop.", "property is yours."),
+        )
+        self.assertEqual(
+            fix("The contract will", "will be signed.", "en"),
+            ("The contract will", "will be signed."),
+        )
+        self.assertEqual(
+            fix("このプログ", "プログラムを", "ja"),
+            ("このプログ", "プログラムを"),
+        )
+
+    def test_finite_buffer_still_flushes_when_no_safe_sentence_break(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        buf.max_chars = 30
+        long_phrase = "This is a deliberately long sentence without a full stop"
+        self.assertEqual(
+            buf.add(long_phrase, "en", 0),
+            [(long_phrase, "en")],
+        )
+
+    def test_complete_sentence_delivered_without_extra_hold(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        self.assertEqual(
+            buf.add("You'd really be helping us if you could extend it to 60 days.",
+                    "en", 0),
+            [("You'd really be helping us if you could extend it to 60 days.", "en")],
+        )
+
     def test_english_fragments_form_one_sentence(self):
         buf = self.pipeline.SentenceBuffer(3)
         self.assertEqual(buf.add("We should", "en", 0), [])
