@@ -24,7 +24,7 @@ jobs:
       - name: Syntax check
         run: |
           python -m py_compile app_core.py updater.py streaming_pipeline.py launcher.py
-          python -m py_compile updates/v0.6.23/app_core.py updates/v0.6.23/streaming_pipeline.py
+          python -m py_compile updates/v0.6.24/app_core.py updates/v0.6.24/streaming_pipeline.py
           python -m unittest discover -s tests -p "test_patch_syntax.py" -v
-      - name: Regression - context-aware Hy-MT2 and existing audio pipelines
+      - name: Regression - isolated Hy-MT2 current utterances and existing audio pipelines
         run: python -m unittest discover -s tests -v
