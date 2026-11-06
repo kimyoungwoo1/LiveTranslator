@@ -120,22 +120,23 @@ class QualityTests(unittest.TestCase):
     def test_split_let_me_see_is_reassembled_for_translation(self):
         buf = self.pipeline.SentenceBuffer(3)
         self.assertEqual(
-            buf.add("That sounds good. Hold on, Andrea. Let me see.", "en", 0), []
+            buf.add("That sounds good. Hold on, Andrea. Let me see.", "en", 0),
+            [("That sounds good. Hold on, Andrea.", "en")]
         )
         self.assertEqual(
             buf.add("what I can do. Yes.", "en", 11),
-            [("That sounds good. Hold on, Andrea. Let me see what I can do. Yes.", "en")]
+            [("Let me see what I can do. Yes.", "en")]
         )
 
     def test_split_it_works_both_ways_is_one_translation(self):
         buf = self.pipeline.SentenceBuffer(3)
         self.assertEqual(
             buf.add("And we appreciate your business, Andrea. It works.", "en", 0),
-            []
+            [("And we appreciate your business, Andrea.", "en")]
         )
         self.assertEqual(
             buf.add("both ways. Thanks again, Junko.", "en", 9),
-            [("And we appreciate your business, Andrea. It works both ways. Thanks again, Junko.", "en")]
+            [("It works both ways. Thanks again, Junko.", "en")]
         )
 
     def test_completed_questions_translate_immediately(self):
