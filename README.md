@@ -303,3 +303,13 @@ Update via **업데이트 확인 → v0.6.23 → restart**. No EXE or model redo
 **Validation:** Windows GitHub Actions `Verify update code (no EXE)` run 42170041994 passed the syntax and full regression suite, including a new test that feeds successive business-call lines and confirms earlier lines are not included in the next Hy-MT2 prompt. This is a **code-level** test, not a real model inference benchmark: the model may still mistranslate ambiguous text, but the previous-utterance contamination pathway is gone.
 
 **Install:** **업데이트 확인 → v0.6.24 → restart**. No new EXE/model download needed. If a live retest continues to show wrong-line translations, compare the source/translation pairs against audio and report the input line and timestamp. Do not re-enable broad prior-dialogue prompting as a quick fix.
+
+## v0.6.25 — protect interrupted negative sentences and keep Korean natural
+
+British Council dialogue comparisons showed that splitting `...to 60 days? I'm not.` and `sure if I can do that, Andrea.` into separate subtitles lost the speaker's negative intent. This patch conservatively holds `I'm not.` or `I am not.` when they occur as a trailing fragment, translates any preceding complete sentence promptly, and joins the lowercase continuation with a corrected sentence boundary. If the next chunk clearly starts a new speaker/utterance, the held phrase is flushed rather than fabricated.
+
+Hy-MT2 keeps the **context-free, current-utterance-only** prompt (v0.6.24 safeguard) but adds concise general instructions to use natural polite Korean, preserve negation, questions, figures, names, and avoid guessing missing words. It never passes older speech into the model. This is a translation prompt change, not a model replacement; it may or may not improve the actual output, so compare the same recording.
+
+Does not fix Whisper hallucinations such as `I'm cool` or `do the Andrea`, and does not supply speaker diarization. Separate real-audio testing is needed for word omissions and model inference quality. All models, session TXT records, existing English/Japanese engines, and EXE remain unchanged.
+
+Windows GitHub Actions run 42171052717 passed Python syntax and the full regression suite before release. Apply via **업데이트 확인 → v0.6.25 → restart**.
