@@ -55,7 +55,6 @@ class SentenceBuffer:
         # Hold only high-confidence tails rather than every short utterance.
         r"it works both|let me see what i can|"
         r"(?:we're|we are) happy to help|"
-        r"(?:i|we) (?:can|could|would|should) do|"
         r"(?:how|what|where|when|why|who|which)|"
         # Whisper can put a false period between 'some cash' and 'flow
         # problems'. Hold this narrowly defined noun phrase, not all 'cash'.
