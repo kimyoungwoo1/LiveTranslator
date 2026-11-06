@@ -21,7 +21,7 @@ class SentenceBuffer:
     Japanese is joined without adding an English word separator.
     """
 
-    TERMINAL = re.compile(r'[.!?。！？]["”’\')\]]*
+    TERMINAL = re.compile(r"[.!?。！？][\s\"\u201D\u2019)\]]*$")
 
     def __init__(self, seconds):
         self.max_age = max(8.0, 2.4 * seconds)
