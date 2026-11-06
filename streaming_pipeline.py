@@ -765,6 +765,7 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
         fixed = re.sub(r"도와줄 일이 있어요", "부탁 하나 드리고 싶어요", fixed)
     if re.search(r"\bA favou?r\?", source, re.IGNORECASE):
         fixed = re.sub(r"도와주시는 거예요\?", "부탁이라고요?", fixed)
+        fixed = re.sub(r"부탁 하나 드리고 싶어요\?", "부탁이라고요?", fixed)
     if re.search(r"\b(?:from|at)\s+Red Band\b", source, re.IGNORECASE):
         fixed = re.sub(r"빨간 밴드", "레드 밴드", fixed)
     if (re.search(r"\binvoice\b", source, re.IGNORECASE)
@@ -783,6 +784,8 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
                        "거래해 주셔서", fixed)
         fixed = re.sub(r"(?:당신의 |여러분의 )?고객님의 지원에 감사드립니다",
                        "거래해 주셔서 감사합니다", fixed)
+        fixed = re.sub(r"(?:우리도 |저희도 )?(?:당신의 |고객님의 )?비즈니스에 감사(?:하죠|합니다|해요)",
+                       "저희도 거래해 주셔서 감사합니다", fixed)
     if re.search(r"\bit works both ways\b", source, re.IGNORECASE) and (
         re.fullmatch(r"\s*it works both ways[.!?]?\s*", source, re.IGNORECASE)
         or re.search(r"\b(?:appreciate|customer|business|patronage)\b", source, re.IGNORECASE) or re.match(r"^\s*it works both ways[.!?]?\s*(?:thanks|thank you)\b", source, re.IGNORECASE)
@@ -795,6 +798,8 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
                        "서로에게 도움이 되는 일이에요", fixed)
         fixed = re.sub(r"양방향으로 (?:잘 )?작동(?:해요|합니다|해|한다)",
                        "서로에게 도움이 되는 일이에요", fixed)
+        fixed = re.sub(r"(?:이건 |이것은 )?양방향으로 작동하는 관계(?:예요|입니다)",
+                       "서로에게 도움이 되는 관계예요", fixed)
     if re.search(r"\bkeep an eye out for it\b", source, re.IGNORECASE):
         replacement = ("메일이 오면 확인할게요"
                        if re.search(r"\b(?:email|e-mail|mail)\b", source, re.IGNORECASE)
