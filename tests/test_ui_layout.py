@@ -37,6 +37,24 @@ class DashboardTests(unittest.TestCase):
             with self.subTest(item=item):
                 self.assertIn(item, ui)
 
+    def test_footer_is_reserved_before_expanding_transcripts(self):
+        ui = ast.get_source_segment(SRC, app_method("build_ui"))
+        self.assertLess(ui.index('footer.pack(side="bottom", fill="x")'),
+                        ui.index('transcript.pack(fill="both", expand=True'))
+        self.assertIn('min(1050, screen_h - 105)', ui)
+        self.assertIn('height=9, wrap="word"', ui)
+
+    def test_hymt_is_recommended_first_and_argos_not_mislabeled(self):
+        ui = ast.get_source_segment(SRC, app_method("build_ui"))
+        self.assertLess(ui.index('text="Hy-MT2 · 기본 추천'),
+                        ui.index('text="Google Cloud · 온라인'))
+        self.assertLess(ui.index('text="Google Cloud · 온라인'),
+                        ui.index('text="Argos · 경량 오프라인'))
+        self.assertNotIn('Argos 고품질', ui)
+        self.assertIn('self.engine_tools_frame = tools', ui)
+        initial = ast.get_source_segment(SRC, app_method("__init__"))
+        self.assertIn('self.settings.get("engine", "hymt")', initial)
+
     def test_both_transcript_boxes_and_overlay_are_preserved(self):
         ui = ast.get_source_segment(SRC, app_method("build_ui"))
         self.assertIn('transcript_pane("원문', ui)
