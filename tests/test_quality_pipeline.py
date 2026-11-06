@@ -77,6 +77,43 @@ class QualityTests(unittest.TestCase):
         self.assertIn("strip_transcript_overlap(", source)
         self.assertIn("if not quality_mode or block.size == 0:", source)
 
+    def test_audio_context_keeps_700ms_tail_once(self):
+        class Samples(list):
+            @property
+            def size(self):
+                return len(self)
+            def copy(self):
+                return Samples(self)
+
+        concat = lambda arrays: Samples(list(arrays[0]) + list(arrays[1]))
+        with mock.patch.object(self.pipeline.np, "concatenate", side_effect=concat):
+            first, tail = self.pipeline.add_audio_context(
+                Samples([1, 2, 3, 4]), Samples([]), rate=4
+            )
+            self.assertEqual(first, [1, 2, 3, 4])
+            self.assertEqual(tail, [3, 4])  # int(4 * 0.7) = 2
+            second, tail2 = self.pipeline.add_audio_context(
+                Samples([5, 6, 7, 8]), tail, rate=4
+            )
+            self.assertEqual(second, [3, 4, 5, 6, 7, 8])
+            self.assertEqual(tail2, [7, 8])
+            self.assertEqual(first + Samples([5, 6, 7, 8]),
+                             [1, 2, 3, 4, 5, 6, 7, 8])
+
+    def test_plain_google_mode_does_not_duplicate_audio(self):
+        class Samples(list):
+            @property
+            def size(self):
+                return len(self)
+
+        with mock.patch.object(self.pipeline.np, "empty", return_value=Samples([])):
+            chunk, tail = self.pipeline.add_audio_context(
+                Samples([1, 2, 3]), Samples([9, 10]), rate=4,
+                quality_mode=False,
+            )
+        self.assertEqual(chunk, [1, 2, 3])
+        self.assertEqual(tail, [])
+
     def test_english_fragments_form_one_sentence(self):
         buf = self.pipeline.SentenceBuffer(3)
         self.assertEqual(buf.add("We should", "en", 0), [])
