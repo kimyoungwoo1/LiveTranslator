@@ -122,6 +122,21 @@ class TranscriptFilesTests(unittest.TestCase):
         self.assertEqual(" ".join(" ".join(parts).split()), " ".join(" ".join(text).split()))
         self.assertTrue(all(len(part) <= 32 for part in parts))
 
+    def test_summary_evidence_keeps_numeric_terms_decisions_and_actions(self):
+        text = (
+            "안녕하세요. 이번 계약의 지급 기간은 기존 30일이에요. "
+            "60일 연장을 요청합니다. 이번에는 예외적으로 허용할 수 있을 것 같습니다. "
+            "신규 주문도 지난번과 같은 규모로 진행하려고 합니다. "
+            "주문서를 이메일로 보내겠습니다. 좋은 하루 되세요."
+        )
+        evidence = self.module.App._summary_evidence(text)
+        self.assertIn("30일", evidence)
+        self.assertIn("60일", evidence)
+        self.assertIn("신규 주문", evidence)
+        self.assertIn("이메일", evidence)
+        self.assertNotIn("좋은 하루", evidence)
+        self.assertLessEqual(len(evidence), 650)
+
     def test_summary_job_not_launched_without_saved_session(self):
         app = self.app(enabled=False)
         app.summary_running = False
