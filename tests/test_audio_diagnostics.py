@@ -28,7 +28,7 @@ class AudioDiagnosticsTests(unittest.TestCase):
 
     def test_engine_selection_retained(self):
         ui = (ROOT / "app_core.py").read_text(encoding="utf-8")
-        self.assertIn('quality_mode=(engine == "argos")', ui)
+        self.assertIn('quality_mode=(engine in ("argos", "hymt"))', ui)
         self.assertIn('if engine == "google":', ui)
         self.assertIn('self.engine.get()', ui)
 
