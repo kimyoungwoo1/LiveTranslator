@@ -26,5 +26,5 @@ jobs:
           python -m py_compile app_core.py updater.py streaming_pipeline.py launcher.py
           python -m py_compile updates/v0.6.26/app_core.py updates/v0.6.26/streaming_pipeline.py
           python -m unittest discover -s tests -p "test_patch_syntax.py" -v
-      - name: Regression - bounded ASR sentence buffering, no word fabrication and existing translation
+      - name: Regression - bounded ASR capture, conservative prefix repairs and translation
         run: python -m unittest discover -s tests -v
