@@ -435,6 +435,30 @@ class HyMT2Tests(unittest.TestCase):
         )
         self.assertIn("request for help", hint("I need a favor.", "en"))
 
+    def test_long_business_dialogue_translation_repairs_only_source_supported_meanings(self):
+        fix = self.mod._repair_clear_korean_idiom_mistranslations
+        source = ("That's great, Junko. We appreciate your business, Andrea. "
+                  "It works both ways. Thanks again.")
+        korean = ("정말 좋네요, 준코. 우리도 당신의 비즈니스에 감사하죠, 안드레아. "
+                  "이건 양방향으로 작동하는 관계예요. 다시 한번 감사합니다.")
+        output = fix(source, korean, "en")
+        self.assertIn("거래해 주셔서 감사합니다", output)
+        self.assertIn("서로에게 도움이 되는 관계예요", output)
+        self.assertNotIn("양방향으로 작동", output)
+
+    def test_quoted_favor_reply_does_not_duplicate_request(self):
+        fix = self.mod._repair_clear_korean_idiom_mistranslations
+        self.assertEqual(
+            fix("I need a favor. A favor?",
+                "부탁 하나 드리고 싶어요. 부탁 하나 드리고 싶어요?", "en"),
+            "부탁 하나 드리고 싶어요. 부탁이라고요?",
+        )
+        self.assertEqual(
+            fix("The machine works both ways.",
+                "이건 양방향으로 작동하는 관계예요.", "en"),
+            "이건 양방향으로 작동하는 관계예요.",
+        )
+
     def test_unsupported_language_does_not_send_requests(self):
         backend = self.mod.HyMT2Backend("unused")
         with self.assertRaisesRegex(RuntimeError, "영어 또는 일본어"):
