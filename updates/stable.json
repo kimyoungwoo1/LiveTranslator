@@ -1,15 +1,15 @@
 {
-  "version": "0.6.23",
+  "version": "0.6.24",
   "min_bootstrap": "0.6.0",
-  "notes": "Hy-MT2 offline translation: use up to 320 characters of previous dialogue to disambiguate current English/Japanese speech, especially nonliteral business idioms, but output Korean for the CURRENT phrase only. Context stays in local llama-server, is reset on session/language changes, and never affects Argos/Google. Does not repair missing Whisper audio. Windows syntax and regression tests passed before release. No new EXE or model download.",
+  "notes": "Urgent Hy-MT2 wrong-utterance correction. v0.6.23 passed previous dialogue to the small CPU model, which sometimes translated past English instead of CURRENT, including 60-day payment terms and approval. Roll back to the proven independent current-utterance prompt from v0.6.22, removing all previous-source context; keep ASR, other engines, one-file-per-session TXT, models and EXE unchanged. Windows syntax and full unit regression tests passed before release.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.23/app_core.py",
+      "path": "updates/v0.6.24/app_core.py",
       "git_sha1": "878a26b351e20539fb4d55ec65646868834f0b83"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.23/streaming_pipeline.py",
-      "git_sha1": "a591f169a87650b11e0bb5f05847e7e86d20dd6a"
+      "path": "updates/v0.6.24/streaming_pipeline.py",
+      "git_sha1": "9cf6a189144dbf263900ebcfb92c86a5dbf32ea9"
     }
   }
 }
