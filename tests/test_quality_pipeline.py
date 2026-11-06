@@ -399,6 +399,24 @@ class QualityTests(unittest.TestCase):
             [("How?", "en"), ("Everything arrived safely.", "en")],
         )
 
+    def test_uncertain_response_waits_for_following_clause(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        buf.max_fragments = 3
+        self.assertEqual(buf.add("The buyer requests 60 days", "en", 0), [])
+        self.assertEqual(buf.add("and the supplier answers", "en", 3), [])
+        self.assertEqual(buf.add("I'm not sure", "en", 6), [])
+        self.assertEqual(
+            buf.add("if I can do that, Andrea.", "en", 9),
+            [("The buyer requests 60 days and the supplier answers I'm not sure if I can do that, Andrea.", "en")],
+        )
+
+    def test_complete_uncertain_response_remains_immediate(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        self.assertEqual(
+            buf.add("I'm not sure if I can do that, Andrea.", "en", 0),
+            [("I'm not sure if I can do that, Andrea.", "en")],
+        )
+
     def test_silence_flush_preserves_incomplete_sentence(self):
         buf = self.pipeline.SentenceBuffer(3)
         buf.add("partial phrase", "en", 0)
