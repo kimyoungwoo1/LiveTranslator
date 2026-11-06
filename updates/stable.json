@@ -1,14 +1,14 @@
 {
-  "version": "0.6.31",
+  "version": "0.6.32",
   "min_bootstrap": "0.6.0",
-  "notes": "Polished meeting dashboard close to the visual mockup: large side-by-side selectable online/offline cards with active blue border, clearly highlighted PC output/microphone source tabs, grouped translation controls, live state heading and input-level label. Keeps single-device capture, per-mode device preferences and all translation functionality. Windows syntax and 118 regression checks passed. Tkinter native appearance may vary by Windows scaling and theme.",
+  "notes": "Fit startup window to screen height with taskbar room; reserve the always-visible bottom control bar before expanding the two transcript panes; give captions more space by default by folding optional engine installation controls; Hy-MT2 first and recommended for new settings (existing saved engine preferences are preserved); relabel Argos as lightweight offline rather than high quality. No ASR, translation model, transcripts or update mechanism changes. Passed Windows syntax and full regression suite.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.31/app_core.py",
-      "git_sha1": "382666d150221e75a28bdeb4d81a4c283ae34728"
+      "path": "updates/v0.6.32/app_core.py",
+      "git_sha1": "c476555c8bfd9ef72292970e182d13ed2c9ddff5"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.31/streaming_pipeline.py",
+      "path": "updates/v0.6.32/streaming_pipeline.py",
       "git_sha1": "4051e51834ba58c0bda631a4abc9d4f7c53fe171"
     }
   }
