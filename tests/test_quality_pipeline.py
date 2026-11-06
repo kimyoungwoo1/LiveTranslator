@@ -71,13 +71,13 @@ class QualityTests(unittest.TestCase):
 
     def test_overlapping_audio_is_used_only_in_quality_mode(self):
         source = (Path(__file__).resolve().parent.parent / "streaming_pipeline.py").read_text(encoding="utf-8")
-        self.assertIn("QUALITY_OVERLAP_SECONDS = 0.7", source)
+        self.assertIn("QUALITY_OVERLAP_SECONDS = 0.9", source)
         self.assertIn("block, overlap_tail = add_audio_context(", source)
         self.assertIn("last_recognized_audio_text = cleaned_original", source)
         self.assertIn("strip_transcript_overlap(", source)
         self.assertIn("if not quality_mode or block.size == 0:", source)
 
-    def test_audio_context_keeps_700ms_tail_once(self):
+    def test_audio_context_keeps_900ms_tail_once(self):
         class Samples(list):
             @property
             def size(self):
@@ -94,12 +94,12 @@ class QualityTests(unittest.TestCase):
                 Samples([1, 2, 3, 4]), Samples([]), rate=4
             )
             self.assertEqual(first, [1, 2, 3, 4])
-            self.assertEqual(tail, [3, 4])  # int(4 * 0.7) = 2
+            self.assertEqual(tail, [2, 3, 4])  # int(4 * 0.9) = 3
             second, tail2 = self.pipeline.add_audio_context(
                 Samples([5, 6, 7, 8]), tail, rate=4
             )
-            self.assertEqual(second, [3, 4, 5, 6, 7, 8])
-            self.assertEqual(tail2, [7, 8])
+            self.assertEqual(second, [2, 3, 4, 5, 6, 7, 8])
+            self.assertEqual(tail2, [6, 7, 8])
             self.assertEqual(first + Samples([5, 6, 7, 8]),
                              [1, 2, 3, 4, 5, 6, 7, 8])
 
