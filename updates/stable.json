@@ -1,15 +1,15 @@
 {
-  "version": "0.6.25",
+  "version": "0.6.26",
   "min_bootstrap": "0.6.0",
-  "notes": "Improve Hy-MT2/Argos sentence continuity at clipped negative clauses: join trailing 'I'm not.' with a lowercase 'sure if I can...' next chunk without swallowing prior complete sentences. Hy-MT2 remains context-free: translate the CURRENT sentence alone, using a short instruction for polite idiomatic Korean, preserving negation, numbers, and questions. No model or EXE reinstall, legacy logs/settings retained. Windows syntax and complete regression tests passed before release.",
+  "notes": "Speech boundary repair for Hy-MT2 and Argos: when a long/aged English chunk contains complete earlier sentences but a clipped tail (e.g. 'cashflow prop'), translate the complete portion promptly, retain the tail for next recognition and conservatively reconcile with a complete recognized next word (e.g. 'problem'). Never invent words. Whisper ASR model and source-only Hy-MT2 translation prompt are unchanged. This does not fix true Whisper misrecognitions or literal business idioms. Windows syntax/full regression tests passed pre-release; no EXE or model download.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.25/app_core.py",
+      "path": "updates/v0.6.26/app_core.py",
       "git_sha1": "878a26b351e20539fb4d55ec65646868834f0b83"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.25/streaming_pipeline.py",
-      "git_sha1": "6a34c90019ab1779cd73c3a1b4865df76d5417a8"
+      "path": "updates/v0.6.26/streaming_pipeline.py",
+      "git_sha1": "0d2958afa0352d703a04cb8039646de9f6a6eaf1"
     }
   }
 }
