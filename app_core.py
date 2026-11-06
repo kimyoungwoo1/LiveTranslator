@@ -248,7 +248,9 @@ class App:
         self._auto_start_pending = False
         self.running = False
         self.devices = []
+        self.all_devices = []
         self.settings = self.load_settings()
+        self.mode = tk.StringVar(value="output" if self.settings.get("audio_device", {}).get("loopback", True) else "input")
         self.device = tk.StringVar()
         self.language = tk.StringVar(value=self.settings.get("language", "en"))
         self.model = tk.StringVar(value=self.settings.get("model", "base"))
@@ -283,6 +285,7 @@ class App:
             "seconds": self.seconds.get(), "save": self.save_enabled.get(),
             "engine": self.engine.get(),
             "audio_device": self.settings.get("audio_device"),
+            "audio_devices_by_mode": self.settings.get("audio_devices_by_mode", {}),
             "hym_server": self.settings.get("hym_server"),
         }, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -291,10 +294,11 @@ class App:
         if not self.devices or self.device_combo.current() < 0:
             return
         selected = self.devices[self.device_combo.current()]
-        self.settings["audio_device"] = {
-            "name": selected[3],
-            "loopback": bool(selected[2]),
-        }
+        choice = {"name": selected[3], "loopback": bool(selected[2])}
+        self.settings["audio_device"] = choice
+        self.settings.setdefault("audio_devices_by_mode", {})[
+            "output" if selected[2] else "input"
+        ] = choice
         self.persist()
 
     def build_ui(self):
@@ -374,13 +378,35 @@ class App:
                                    padx=14, pady=8, bd=0)
         self.live_label.pack(side="right", pady=(8, 0))
 
+        # Each meeting mode captures exactly one audio source.
+        mode_card = ttk.Frame(outer, style="LTCard.TFrame", padding=(15, 10))
+        mode_card.pack(fill="x", pady=(0, 9))
+        ttk.Label(mode_card, text="사용 모드", style="LTCard.TLabel",
+                  font=("Malgun Gothic", 11, "bold")).pack(anchor="w", pady=(0, 6))
+        mode_row = ttk.Frame(mode_card, style="LTCard.TFrame")
+        mode_row.pack(fill="x")
+        ttk.Radiobutton(
+            mode_row, text="🔊 온라인 회의  ·  PC 출력", variable=self.mode,
+            value="output", command=self.switch_audio_mode,
+            style="LTRadio.TRadiobutton"
+        ).pack(side="left", padx=(0, 26))
+        ttk.Radiobutton(
+            mode_row, text="🎤 오프라인 회의  ·  마이크 입력", variable=self.mode,
+            value="input", command=self.switch_audio_mode,
+            style="LTRadio.TRadiobutton"
+        ).pack(side="left")
+        self.mode_description = tk.StringVar()
+        ttk.Label(mode_card, textvariable=self.mode_description,
+                  style="LTCardMuted.TLabel").pack(anchor="w", pady=(7, 0))
+        self._update_mode_ui()
+
         source = ttk.Frame(outer, style="LTCard.TFrame", padding=(15, 11))
         source.pack(fill="x", pady=(0, 9))
-        ttk.Label(source, text="오디오 및 음성 인식", style="LTCard.TLabel",
+        ttk.Label(source, text="오디오 장치 및 음성 인식", style="LTCard.TLabel",
                   font=("Malgun Gothic", 11, "bold")).pack(anchor="w", pady=(0, 8))
         row = ttk.Frame(source, style="LTCard.TFrame")
         row.pack(fill="x", pady=(0, 9))
-        ttk.Label(row, text="장치", style="LTCardMuted.TLabel",
+        ttk.Label(row, text="선택 장치", style="LTCardMuted.TLabel",
                   width=10).pack(side="left")
         self.device_combo = ttk.Combobox(row, textvariable=self.device,
                                           state="readonly", style="LT.TCombobox")
@@ -623,6 +649,58 @@ class App:
         else:
             self.overlay.withdraw()
 
+    def _update_mode_ui(self):
+        if not hasattr(self, "mode_description"):
+            return
+        offline = self.mode.get() == "input"
+        self.mode_description.set(
+            "오프라인 회의: 노트북/외장 마이크로 발표자의 음성을 번역합니다. "
+            "마이크를 발표자 가까이에 두세요."
+            if offline else
+            "온라인 회의: Teams, Zoom, 브라우저 등 PC에서 재생되는 소리를 번역합니다. "
+            "이어폰/스피커 출력 장치를 선택하세요."
+        )
+
+    def switch_audio_mode(self):
+        """Change source type, never capture microphone and loopback together."""
+        if self.running or self._audio_scan_busy:
+            current = self.devices[self.device_combo.current()] if (
+                self.devices and self.device_combo.current() >= 0
+            ) else None
+            if current is not None:
+                self.mode.set("output" if current[2] else "input")
+            self._update_mode_ui()
+            messagebox.showinfo("입력 모드", "번역과 소리 찾기를 중지한 후 모드를 바꿔주세요.")
+            return
+        self._update_mode_ui()
+        self._show_mode_devices()
+        self.persist()
+
+    def _show_mode_devices(self):
+        if not hasattr(self, "mode"):
+            return
+        want_loopback = self.mode.get() != "input"
+        self.devices = [
+            d for d in getattr(self, "all_devices", []) if bool(d[2]) == want_loopback
+        ]
+        self.device_combo["values"] = [d[0] for d in self.devices]
+        preferred = self.settings.get("audio_devices_by_mode", {}).get(
+            self.mode.get())
+        if not preferred:
+            saved = self.settings.get("audio_device")
+            if isinstance(saved, dict) and saved.get("loopback") is want_loopback:
+                preferred = saved
+        chosen = find_saved_device_index(self.devices, preferred)
+        label = "PC 출력" if want_loopback else "마이크 입력"
+        if self.devices:
+            self.device_combo.current(chosen if chosen is not None else 0)
+            self.status.set(
+                f"{label} 모드 · 장치 선택: {self.devices[self.device_combo.current()][3]}"
+            )
+        else:
+            self.device_combo.set("")
+            self.status.set(f"{label} 장치를 찾을 수 없습니다. Windows 오디오 설정을 확인하세요.")
+
     def refresh(self):
         # Keep a stable name so Bluetooth and virtual device index changes do not
         # silently switch the capture source. Use the currently active output
@@ -662,6 +740,10 @@ class App:
             return
         finally:
             p.terminate()
+        if hasattr(self, "mode"):
+            self.all_devices = devices
+            self._show_mode_devices()
+            return
         self.devices = devices
         self.device_combo["values"] = [d[0] for d in devices]
         if not devices:
