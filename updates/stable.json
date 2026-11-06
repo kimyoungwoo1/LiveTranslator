@@ -1,14 +1,14 @@
 {
-  "version": "0.6.21",
+  "version": "0.6.22",
   "min_bootstrap": "0.6.0",
-  "notes": "Hy-MT2/Argos speech quality follow-up: hold only visibly incomplete English phrase tails such as 'Let me see.' + 'what I can do' or 'It works.' + 'both ways' and translate completed earlier sentences immediately; conservatively collapse adjacent 3+ word Whisper restarts such as 'we can make a We can make an exception'. Preserve short real repetitions, English source audit, all installed models and per-session TXT recordings. No EXE download. Live accuracy and subtitle delay must be checked against the same source audio.",
+  "notes": "Save each translation run in ONE timestamped TXT file directly inside transcripts, with paired [원문] and [한국어 번역] blocks per completed translation. Preserve separate files between runs, older daily TXT and prior two-file session directories. 기록 폴더 열기 still opens Windows Explorer. No new EXE or AI models.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.21/app_core.py",
-      "git_sha1": "d29918787f53724e108eeb84bc4b50ff20afdabd"
+      "path": "updates/v0.6.22/app_core.py",
+      "git_sha1": "878a26b351e20539fb4d55ec65646868834f0b83"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.21/streaming_pipeline.py",
+      "path": "updates/v0.6.22/streaming_pipeline.py",
       "git_sha1": "148cd75fbe3736df75fdeaf472bcb4770b820737"
     }
   }
