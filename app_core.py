@@ -486,14 +486,19 @@ class App:
         row.pack(fill="x")
         ttk.Label(row, text="번역 엔진", style="LTCard.TLabel",
                   font=("Malgun Gothic", 11, "bold")).pack(side="left", padx=(0, 20))
-        ttk.Radiobutton(row, text="Argos 고품질 · 오프라인", variable=self.engine,
-                        value="argos", style="LTRadio.TRadiobutton").pack(side="left", padx=(0, 13))
+        ttk.Radiobutton(row, text="Hy-MT2 · 기본 추천 · 오프라인", variable=self.engine,
+                        value="hymt", style="LTRadio.TRadiobutton").pack(side="left", padx=(0, 16))
         ttk.Radiobutton(row, text="Google Cloud · 온라인", variable=self.engine,
-                        value="google", style="LTRadio.TRadiobutton").pack(side="left", padx=(0, 12))
-        ttk.Radiobutton(row, text="Hy-MT2 · 오프라인", variable=self.engine,
-                        value="hymt", style="LTRadio.TRadiobutton").pack(side="left")
+                        value="google", style="LTRadio.TRadiobutton").pack(side="left", padx=(0, 16))
+        ttk.Radiobutton(row, text="Argos · 경량 오프라인", variable=self.engine,
+                        value="argos", style="LTRadio.TRadiobutton").pack(side="left")
+        self.engine_tools_visible = False
+        self.engine_tools_toggle = ttk.Button(
+            engine_card, text="설치 / 고급 설정 펼치기 ▾",
+            command=self.toggle_engine_tools, style="LT.TButton")
+        self.engine_tools_toggle.pack(anchor="w", pady=(6, 0))
         tools = ttk.Frame(engine_card, style="LTCard.TFrame")
-        tools.pack(fill="x", pady=(8, 0))
+        self.engine_tools_frame = tools
         self.hym_install_btn = ttk.Button(
             tools, text="Hy-MT2 설치", command=self.install_hymt, style="LT.TButton"
         )
@@ -504,10 +509,11 @@ class App:
                    command=self.choose_hymt_server, style="LT.TButton").pack(side="left")
         ttk.Button(tools, text="Google API 키 설정",
                    command=self.configure_google_key, style="LT.TButton").pack(side="right")
-        ttk.Label(engine_card,
-                  text="Hy-MT2는 최초 설치 시 약 1.1GB 모델 + CPU 실행기가 필요합니다. "
-                       "오프라인 번역 / Google은 인식된 텍스트가 외부로 전송될 수 있습니다.",
-                  style="LTCardMuted.TLabel").pack(anchor="w", pady=(7, 0))
+        self.engine_hint_label = ttk.Label(
+            engine_card,
+            text="Hy-MT2 최초 설치에는 모델 및 CPU 실행기 다운로드가 필요합니다. "
+                 "Google Cloud는 API 요금 및 외부 텍스트 전송이 발생할 수 있습니다.",
+            style="LTCardMuted.TLabel")
 
         actions = ttk.Frame(outer, style="LT.TFrame")
         actions.pack(fill="x", pady=(1, 9))
@@ -601,6 +607,18 @@ class App:
         self.overlay_text.pack(fill="both", expand=True)
         self.overlay.protocol("WM_DELETE_WINDOW", self.hide_overlay)
         self.overlay.withdraw()
+
+    def toggle_engine_tools(self):
+        """Fold optional installation controls to reserve caption space."""
+        self.engine_tools_visible = not self.engine_tools_visible
+        if self.engine_tools_visible:
+            self.engine_tools_frame.pack(fill="x", pady=(6, 0))
+            self.engine_hint_label.pack(anchor="w", pady=(5, 0))
+            self.engine_tools_toggle.configure(text="설치 / 고급 설정 접기 ▴")
+        else:
+            self.engine_tools_frame.pack_forget()
+            self.engine_hint_label.pack_forget()
+            self.engine_tools_toggle.configure(text="설치 / 고급 설정 펼치기 ▾")
 
     def set_live_indicator(self, state):
         if not hasattr(self, "live_label"):
