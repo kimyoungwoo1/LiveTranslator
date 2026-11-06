@@ -144,9 +144,9 @@ class SentenceBuffer:
             # Whisper sometimes emits "How?" before recognizing "How can I
             # help you?" in the next audio window. The latter repeats the
             # exact word, so it is a verified restart, not new speech.
-            trailing = re.search(r"\\b(how|what|where|when|why|who|which)[.!?]?\\s*$",
+            trailing = re.search(r"\b(how|what|where|when|why|who|which)[.!?]?\s*$",
                                  self.text, re.IGNORECASE)
-            leading = re.match(r"\\s*([a-z]+)\\b\\s+\\w+", fragment, re.IGNORECASE)
+            leading = re.match(r"\s*([a-z]+)\b\s+\w+", fragment, re.IGNORECASE)
             if (trailing and leading and
                     trailing.group(1).casefold() == leading.group(1).casefold()):
                 self.text = self.text[:trailing.start()].rstrip()
