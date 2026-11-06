@@ -709,6 +709,12 @@ def _hym_current_text_guidance(text, source_lang):
             return "Here, 'it works both ways' means both sides benefit, not mechanical bidirectionality. "
     if re.search(r"\bkeep an eye out for it\b", text, re.IGNORECASE):
         return "Here, 'keep an eye out' means to watch for or expect a promised item or message, not physically stare at it. "
+    if re.search(r"\binvoice\b", text, re.IGNORECASE):
+        return "In business, 'invoice' is 청구서 (a payment request), not a receipt. "
+    if re.search(r"\bextension\b", text, re.IGNORECASE) and re.search(
+        r"\b(?:payment|terms|days|deadline)\b", text, re.IGNORECASE
+    ):
+        return "Here, 'extension' means extending a payment deadline, not extending a physical object. "
     return ""
 
 
@@ -721,6 +727,10 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
     if source_lang != "en":
         return korean
     fixed = korean
+    if re.search(r"\binvoice\b", source, re.IGNORECASE):
+        # English invoice means a request for payment. Only fix this clear
+        # single-term mismatch; leave receipts from other source words intact.
+        fixed = re.sub(r"영수증", "청구서", fixed)
     if re.search(r"\bappreciate your business\b", source, re.IGNORECASE):
         fixed = re.sub(r"(?:여러분의 |당신의 )?고객이 되어\s*주셔서",
                        "거래해 주셔서", fixed)
