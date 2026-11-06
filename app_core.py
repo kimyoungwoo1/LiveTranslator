@@ -423,6 +423,8 @@ class App:
             tools, text="Hy-MT2 설치", command=self.install_hymt, style="LT.TButton"
         )
         self.hym_install_btn.pack(side="left", padx=(0, 6))
+        ttk.Button(tools, text="설치 오류 확인", command=self.show_hymt_install_error,
+                   style="LT.TButton").pack(side="left", padx=(0, 6))
         ttk.Button(tools, text="llama.cpp 실행기 선택",
                    command=self.choose_hymt_server, style="LT.TButton").pack(side="left")
         ttk.Button(tools, text="Google API 키 설정",
@@ -764,6 +766,23 @@ class App:
         self.persist()
         self.status.set("Hy-MT2 실행기 경로 저장 완료. 모델이 없다면 설치를 진행하세요.")
 
+    def show_hymt_install_error(self):
+        file = HYM_DIR / "install_error.log"
+        if not file.is_file():
+            messagebox.showinfo(
+                "Hy-MT2 설치 진단",
+                "저장된 설치 오류가 없습니다. 먼저 'Hy-MT2 설치'를 눌러주세요."
+            )
+            return
+        try:
+            contents = file.read_text(encoding="utf-8")[-3500:]
+            messagebox.showerror(
+                "Hy-MT2 설치 오류 상세",
+                contents + "\n\n오류 기록 위치: " + str(file)
+            )
+        except OSError as exc:
+            messagebox.showerror("Hy-MT2 설치 진단", str(exc))
+
     def install_hymt(self):
         if self.running:
             messagebox.showinfo("Hy-MT2 설치", "번역을 중지한 후 모델을 설치하세요.")
@@ -792,9 +811,20 @@ class App:
                     custom_path=self.settings.get("hym_server"),
                     cancel=self._hym_install_cancel,
                 )
+                (HYM_DIR / "install_error.log").unlink(missing_ok=True)
                 self.events.put(("hym_installed", None))
             except Exception as exc:
-                self.events.put(("hym_install_error", str(exc)))
+                detail = f"{type(exc).__name__}: {exc}"
+                try:
+                    HYM_DIR.mkdir(parents=True, exist_ok=True)
+                    (HYM_DIR / "install_error.log").write_text(
+                        f"단계: Hy-MT2 설치\n오류: {detail}\n"
+                        "재시도 시 기존 다운로드 파일은 유지됩니다.\n",
+                        encoding="utf-8"
+                    )
+                except OSError:
+                    pass
+                self.events.put(("hym_install_error", detail))
 
         threading.Thread(
             target=install_task, name="HyMT2Installer", daemon=True
@@ -1113,8 +1143,11 @@ class App:
                 elif kind == "hym_install_error":
                     self._hym_install_busy = False
                     self.hym_install_btn.config(state="normal")
-                    self.status.set("Hy-MT2 설치 실패 · 기존 엔진은 계속 사용할 수 있습니다.")
-                    messagebox.showerror("Hy-MT2 설치", data)
+                    self.status.set(f"Hy-MT2 설치 실패 · {data[:190]}")
+                    messagebox.showerror(
+                        "Hy-MT2 설치 오류",
+                        data + "\n\n세부 내용은 '설치 오류 확인'에서 다시 볼 수 있습니다."
+                    )
                 elif kind == "scan_completed":
                     self._audio_scan_busy = False
                     auto = self._auto_start_pending
