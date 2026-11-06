@@ -24,7 +24,7 @@ jobs:
       - name: Syntax check
         run: |
           python -m py_compile app_core.py updater.py streaming_pipeline.py launcher.py
-          python -m py_compile updates/v0.6.30/app_core.py updates/v0.6.30/streaming_pipeline.py
+          python -m py_compile updates/v0.6.31/app_core.py updates/v0.6.31/streaming_pipeline.py
           python -m unittest discover -s tests -p "test_patch_syntax.py" -v
-      - name: Regression - v0.6.30 online/offline device mode
+      - name: Regression - v0.6.31 polished meeting UI
         run: python -m unittest discover -s tests -v
