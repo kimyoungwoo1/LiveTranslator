@@ -705,7 +705,7 @@ def _hym_current_text_guidance(text, source_lang):
     if re.search(r"\bappreciate your business\b", text, re.IGNORECASE):
         return "Here, 'business' means a customer's patronage, not their company. "
     if re.search(r"\bit works both ways\b", text, re.IGNORECASE):
-        if re.fullmatch(r"\s*it works both ways[.!?]?\s*", text, re.IGNORECASE) or re.search(r"\b(?:thanks|thank you|appreciate|customer|business)\b", text, re.IGNORECASE):
+        if re.fullmatch(r"\s*it works both ways[.!?]?\s*", text, re.IGNORECASE) or re.search(r"\b(?:appreciate|customer|business|patronage)\b", text, re.IGNORECASE) or re.match(r"^\s*it works both ways[.!?]?\s*(?:thanks|thank you)\b", text, re.IGNORECASE):
             return "Here, 'it works both ways' means both sides benefit, not mechanical bidirectionality. "
     if re.search(r"\bkeep an eye out for it\b", text, re.IGNORECASE):
         return "Here, 'keep an eye out' means to watch for or expect a promised item or message, not physically stare at it. "
@@ -728,7 +728,7 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
                        "거래해 주셔서 감사합니다", fixed)
     if re.search(r"\bit works both ways\b", source, re.IGNORECASE) and (
         re.fullmatch(r"\s*it works both ways[.!?]?\s*", source, re.IGNORECASE)
-        or re.search(r"\b(?:thanks|thank you|appreciate|customer|business)\b", source, re.IGNORECASE)
+        or re.search(r"\b(?:appreciate|customer|business|patronage)\b", source, re.IGNORECASE) or re.match(r"^\s*it works both ways[.!?]?\s*(?:thanks|thank you)\b", source, re.IGNORECASE)
     ):
         fixed = re.sub(r"양방(?:향)?으로 작동(?:해요|합니다|해|한다|하는군요)",
                        "서로에게 도움이 되는 일이에요", fixed)
