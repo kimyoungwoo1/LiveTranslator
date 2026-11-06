@@ -705,7 +705,7 @@ def _hym_current_text_guidance(text, source_lang):
     if re.search(r"\bappreciate your business\b", text, re.IGNORECASE):
         return "Here, 'business' means a customer's patronage, not their company. "
     if re.search(r"\bit works both ways\b", text, re.IGNORECASE):
-        if re.search(r"\b(?:thanks|thank you|appreciate|customer|business)\b", text, re.IGNORECASE):
+        if re.fullmatch(r"\s*it works both ways[.!?]?\s*", text, re.IGNORECASE) or re.search(r"\b(?:thanks|thank you|appreciate|customer|business)\b", text, re.IGNORECASE):
             return "Here, 'it works both ways' means both sides benefit, not mechanical bidirectionality. "
     if re.search(r"\bkeep an eye out for it\b", text, re.IGNORECASE):
         return "Here, 'keep an eye out' means to watch for or expect a promised item or message, not physically stare at it. "
@@ -724,18 +724,25 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
     if re.search(r"\bappreciate your business\b", source, re.IGNORECASE):
         fixed = re.sub(r"(?:여러분의 |당신의 )?고객이 되어\s*주셔서",
                        "거래해 주셔서", fixed)
-    if re.search(r"\bit works both ways\b", source, re.IGNORECASE) and re.search(
-        r"\b(?:thanks|thank you|appreciate|customer|business)\b", source, re.IGNORECASE
+        fixed = re.sub(r"(?:당신의 |여러분의 )?고객님의 지원에 감사드립니다",
+                       "거래해 주셔서 감사합니다", fixed)
+    if re.search(r"\bit works both ways\b", source, re.IGNORECASE) and (
+        re.fullmatch(r"\s*it works both ways[.!?]?\s*", source, re.IGNORECASE)
+        or re.search(r"\b(?:thanks|thank you|appreciate|customer|business)\b", source, re.IGNORECASE)
     ):
         fixed = re.sub(r"양방(?:향)?으로 작동(?:해요|합니다|해|한다|하는군요)",
                        "서로에게 도움이 되는 일이에요", fixed)
         fixed = re.sub(r"양쪽으로 작동(?:해요|합니다|해|한다)",
+                       "서로에게 도움이 되는 일이에요", fixed)
+        fixed = re.sub(r"양방향으로 작동(?:해요|합니다|해|한다)",
                        "서로에게 도움이 되는 일이에요", fixed)
     if re.search(r"\bkeep an eye out for it\b", source, re.IGNORECASE):
         replacement = ("메일이 오면 확인할게요"
                        if re.search(r"\b(?:email|e-mail|mail)\b", source, re.IGNORECASE)
                        else "소식 기다릴게요")
         fixed = re.sub(r"(?:그걸|그것을|그것|그를)\s*(?:잘\s*)?지켜보겠습니다",
+                       replacement, fixed)
+        fixed = re.sub(r"그걸 기대하며 주의를 기울이겠습니다",
                        replacement, fixed)
     return fixed
 
@@ -841,28 +848,44 @@ class HyMT2Backend:
         except (KeyError, TypeError, IndexError, ValueError):
             raise RuntimeError("Hy-MT2 응답 형식을 해석할 수 없습니다.") from None
 
-    def summarize_korean(self, text):
-        """Summarize one bounded excerpt of already-translated Korean locally.
+    def summarize_korean(self, text, evidence=""):
+        """Summarize one passage with explicit evidence and decision-status rules.
 
-        This is a separate operation from translation; no transcript is sent
-        to external APIs. A small translation-focused model may be imperfect.
+        Local model is translation-focused: instruct it to distinguish request
+        from approval, include new orders and concrete next steps, and avoid
+        claiming that tentative language is a signed agreement.
         """
         if not text.strip():
             raise ValueError("요약할 한국어 발화가 없습니다.")
         if not self.process or self.process.poll() is not None:
             raise RuntimeError("로컬 Hy-MT2 요약 서버가 실행 중이지 않습니다.")
+        # Evidence is extracted verbatim from this same passage, never
+        # prior meetings or fabricated facts. Keep context small for CPU use.
+        evidence_block = (
+            "\n[숫자·결정·후속조치 관련 실제 자막 발췌]\n" + evidence[:650]
+            if evidence.strip() else ""
+        )
         prompt = (
-            "다음은 회의나 통화 중 수집한 한국어 자막입니다. "
-            "자막에 실제로 등장한 사실만 간결한 한국어로 요약하세요. "
-            "주제, 핵심 내용, 결정 사항, 후속 조치를 구분하되, "
-            "없는 항목은 '언급 없음'이라고 쓰세요. 숫자, 기한, 인명은 정확히 유지하세요. "
-            "원문에 없는 내용을 추측하거나 만들어 내지 마세요. "
-            "설명 없이 요약 결과만 작성하세요.\n\n"
-            + text[:1500]
+            "너는 업무 회의록을 작성하는 비서입니다. 다음 한국어 회의 자막만 사용하세요. "
+            "사실을 추가하거나 발언자/기한을 추측하지 마세요. "
+            "절대로 요청·제안·검토·잠정 수락을 최종 승인이나 확정 계약으로 바꾸지 마세요. "
+            "'가능할 것 같다', '검토하겠다', '예외를 둘 수 있다'는 잠정적인 답변입니다. "
+            "30일·60일 같은 기존 조건과 변경 요청을 구별하세요. "
+            "신규 주문, 주문 규모, 배송 시 결제 등 언급된 핵심 조건을 빠뜨리지 마세요. "
+            "이메일 송부, 서면 확인, 기타 후속 조치는 실제 언급된 항목만 쓰세요. "
+            "짧고 명료한 한국어로 다음 항목을 작성하세요.\n"
+            "주제: ...\n"
+            "핵심 내용: ...\n"
+            "결정/협의 상태: ... (확정되지 않았으면 '잠정 논의' 또는 '확정 여부 미확인')\n"
+            "후속 조치: ... (실제 언급된 주체만 적기)\n"
+            "확인 필요: ... (자막만으로 불명확한 중요한 내용만, 없으면 '없음')\n"
+            "결정된 사실과 제안을 반드시 구분하고, '언급 없음'을 필요할 때 사용하세요. "
+            "결과만 출력하세요.\n\n"
+            "[회의 자막]\n" + text[:1200] + evidence_block
         )
         payload = {
             "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0, "max_tokens": 440, "stream": False,
+            "temperature": 0, "max_tokens": 540, "stream": False,
         }
         request = urlrequest.Request(
             f"http://127.0.0.1:{self.port}/v1/chat/completions",
