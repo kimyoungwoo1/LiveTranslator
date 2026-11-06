@@ -415,5 +415,22 @@ class QualityTests(unittest.TestCase):
         self.assertNotIn('mode="balanced"', app)
 
 
+    def test_payment_extension_continues_into_terms(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        self.assertEqual(buf.add("I need an extension.", "en", 0), [])
+        self.assertEqual(
+            buf.add("on the payment terms.", "en", 3),
+            [("I need an extension on the payment terms.", "en")],
+        )
+
+    def test_payment_extension_does_not_swallow_new_turn(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        self.assertEqual(buf.add("I need an extension.", "en", 0), [])
+        self.assertEqual(
+            buf.add("That's not possible.", "en", 3),
+            [("I need an extension.", "en"), ("That's not possible.", "en")],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
