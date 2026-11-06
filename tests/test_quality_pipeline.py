@@ -334,6 +334,12 @@ class QualityTests(unittest.TestCase):
         self.assertEqual(buf.add("Hello", "en", 3), [])
         self.assertEqual(buf.add("world.", "en", 6), [("Hello world.", "en")])
 
+    def test_cash_flow_phrase_joined_across_capture_blocks(self):
+        buf = self.pipeline.SentenceBuffer(3)
+        self.assertEqual(buf.add("We have to manage our own cash.", "en", 0), [])
+        results = buf.add("flow. New order next.", "en", 2)
+        self.assertIn("own cash flow", " ".join(text for text, _ in results))
+
     def test_silence_flush_preserves_incomplete_sentence(self):
         buf = self.pipeline.SentenceBuffer(3)
         buf.add("partial phrase", "en", 0)
