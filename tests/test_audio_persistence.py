@@ -182,5 +182,50 @@ class AudioSelectionTests(unittest.TestCase):
         app.scan_audio.assert_not_called()
 
 
+    def test_mode_filters_audio_devices_and_remembers_each_kind(self):
+        app = app_core.App.__new__(app_core.App)
+        speaker = ("🔊 출력 | Speaker", 5, True, "Speaker")
+        mic = ("🎤 입력 | Microphone", 6, False, "Microphone")
+        app.all_devices = [speaker, mic]
+        app.devices = []
+        app.device_combo = FakeCombo(-1)
+        app.device_combo.set = mock.MagicMock()
+        app.mode = mock.MagicMock()
+        app.mode.get.return_value = "input"
+        app.settings = {"audio_devices_by_mode": {
+            "input": {"name": "Microphone", "loopback": False},
+            "output": {"name": "Speaker", "loopback": True},
+        }}
+        app.status = mock.MagicMock()
+        app.persist = mock.MagicMock()
+        app_core.App._show_mode_devices(app)
+        self.assertEqual(app.devices, [mic])
+        self.assertEqual(app.device_combo.current(), 0)
+        app_core.App.remember_selected_device(app)
+        self.assertEqual(app.settings["audio_device"],
+                         {"name": "Microphone", "loopback": False})
+        self.assertEqual(app.settings["audio_devices_by_mode"]["output"]["name"],
+                         "Speaker")
+        app.mode.get.return_value = "output"
+        app_core.App._show_mode_devices(app)
+        self.assertEqual(app.devices, [speaker])
+
+    def test_switching_mode_during_translation_does_not_change_source(self):
+        app = app_core.App.__new__(app_core.App)
+        app.running = True
+        app._audio_scan_busy = False
+        app.devices = [("🔊 출력 | Speaker", 5, True, "Speaker")]
+        app.device_combo = FakeCombo()
+        app.mode = mock.MagicMock()
+        app._update_mode_ui = mock.MagicMock()
+        app._show_mode_devices = mock.MagicMock()
+        app.persist = mock.MagicMock()
+        with mock.patch.object(app_core.messagebox, "showinfo"):
+            app_core.App.switch_audio_mode(app)
+        app.mode.set.assert_called_once_with("output")
+        app._show_mode_devices.assert_not_called()
+        app.persist.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
