@@ -256,7 +256,9 @@ class App:
         self.device = tk.StringVar()
         self.language = tk.StringVar(value=self.settings.get("language", "en"))
         # v0.6.37 migrates manual ASR selection to automatic, with an optional override.
-        self.model = tk.StringVar(value="auto" if self.settings.get("model") in ("tiny", "base", "small", None, "auto") else "auto")
+        self.model = tk.StringVar(value=self.settings.get("asr_mode", "auto"))
+        if self.model.get() not in ("auto", "base", "small", "tiny"):
+            self.model.set("auto")
         self.seconds = tk.StringVar(value=str(self.settings.get("seconds", 3)))
         self.save_enabled = tk.BooleanVar(value=self.settings.get("save", False))
         self.engine = tk.StringVar(value=self.settings.get("engine", "hymt"))
@@ -287,7 +289,8 @@ class App:
 
     def persist(self):
         SETTINGS.write_text(json.dumps({
-            "language": self.language.get(), "model": self.model.get(),
+            "language": self.language.get(), "model": self._effective_asr_model(self.model.get()),
+            "asr_mode": self.model.get(),
             "seconds": self.seconds.get(), "save": self.save_enabled.get(),
             "engine": self.engine.get(),
             "audio_device": self.settings.get("audio_device"),
@@ -476,11 +479,7 @@ class App:
                      textvariable=self.language, width=8,
                      style="LT.TCombobox").pack(side="left", padx=(0, 22))
         ttk.Label(row, text="음성 인식 · 자동 최적화", style="LTCardMuted.TLabel").pack(side="left", padx=(0, 22))
-        ttk.Label(row, text="인식 간격", style="LTCardMuted.TLabel").pack(side="left", padx=(0, 7))
-        ttk.Combobox(row, values=["2", "3", "4", "5", "6", "8"],
-                     state="readonly", textvariable=self.seconds, width=6,
-                     style="LT.TCombobox").pack(side="left")
-        ttk.Label(row, text="초", style="LTCardMuted.TLabel").pack(side="left", padx=(5, 0))
+
         self._update_mode_ui()
 
         engine_card = ttk.Frame(outer, style="LTCard.TFrame", padding=(15, 8))
@@ -509,8 +508,15 @@ class App:
             asr_row, values=["auto", "base", "small", "tiny"], state="readonly",
             textvariable=self.model, width=10, style="LT.TCombobox"
         ).pack(side="left", padx=(0, 12))
+        ttk.Label(asr_row, text="자막 간격", style="LTCardMuted.TLabel"
+                  ).pack(side="left", padx=(0, 8))
+        ttk.Combobox(
+            asr_row, values=["2", "3", "4", "5", "6", "8"],
+            state="readonly", textvariable=self.seconds, width=5,
+            style="LT.TCombobox"
+        ).pack(side="left", padx=(0, 7))
         ttk.Label(
-            asr_row, text="auto: 실시간 반응을 우선하며 대기열에 맞춰 인식 연산량을 조절합니다.",
+            asr_row, text="초 · 자동 모드는 실시간 안정성을 우선하며 대기량에 맞춰 연산량을 조절합니다.",
             style="LTCardMuted.TLabel"
         ).pack(side="left")
 
