@@ -50,7 +50,7 @@ class SentenceBuffer:
     # are translated immediately, preserving real-time subtitle responsiveness.
     _OPEN_END = re.compile(
         r"\b(?:let me see|it works|i'll keep an eye out|"
-        r"i'm not|i am not|"
+        r"i'm not|i am not|need an extension|"
         # Whisper can put a false period between 'some cash' and 'flow
         # problems'. Hold this narrowly defined noun phrase, not all 'cash'.
         r"(?:some|our|your|their)\s+cash|"
@@ -704,9 +704,40 @@ def _hym_current_text_guidance(text, source_lang):
                 "operating in two directions. ")
     if re.search(r"\bappreciate your business\b", text, re.IGNORECASE):
         return "Here, 'business' means a customer's patronage, not their company. "
+    if re.search(r"\bit works both ways\b", text, re.IGNORECASE):
+        if re.search(r"\b(?:thanks|thank you|appreciate|customer|business)\b", text, re.IGNORECASE):
+            return "Here, 'it works both ways' means both sides benefit, not mechanical bidirectionality. "
     if re.search(r"\bkeep an eye out for it\b", text, re.IGNORECASE):
-        return "Here, 'keep an eye out' means to watch for or expect something. "
+        return "Here, 'keep an eye out' means to expect a promised item or message, not physically stare at it. "
     return ""
+
+
+
+def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
+    """Repair only clear literal idiom errors using the CURRENT English source.
+
+    Do not fabricate words missing from Whisper or alter natural translations.
+    """
+    if source_lang != "en":
+        return korean
+    fixed = korean
+    if re.search(r"\bappreciate your business\b", source, re.IGNORECASE):
+        fixed = re.sub(r"(?:여러분의 |당신의 )?고객이 되어\s*주셔서",
+                       "거래해 주셔서", fixed)
+    if re.search(r"\bit works both ways\b", source, re.IGNORECASE) and re.search(
+        r"\b(?:thanks|thank you|appreciate|customer|business)\b", source, re.IGNORECASE
+    ):
+        fixed = re.sub(r"양방(?:향)?으로 작동(?:해요|합니다|해|한다|하는군요)",
+                       "서로에게 도움이 되는 일이에요", fixed)
+        fixed = re.sub(r"양쪽으로 작동(?:해요|합니다|해|한다)",
+                       "서로에게 도움이 되는 일이에요", fixed)
+    if re.search(r"\bkeep an eye out for it\b", source, re.IGNORECASE):
+        replacement = ("메일이 오면 확인할게요"
+                       if re.search(r"\b(?:email|e-mail|mail)\b", source, re.IGNORECASE)
+                       else "소식 기다릴게요")
+        fixed = re.sub(r"(?:그걸|그것을|그것|그를)\s*(?:잘\s*)?지켜보겠습니다",
+                       replacement, fixed)
+    return fixed
 
 
 class HyMT2Backend:
@@ -804,7 +835,7 @@ class HyMT2Backend:
             translated = answer["choices"][0]["message"]["content"].strip()
             if not translated:
                 raise RuntimeError("번역 결과가 비어 있습니다.")
-            return translated
+            return _repair_clear_korean_idiom_mistranslations(text, translated, source_lang)
         except (urlerror.URLError, TimeoutError) as exc:
             raise RuntimeError(f"Hy-MT2 로컬 번역 응답 실패: {exc}") from None
         except (KeyError, TypeError, IndexError, ValueError):
