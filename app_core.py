@@ -740,6 +740,38 @@ class App:
             chunks.append(current)
         return chunks
 
+    @staticmethod
+    def _summary_evidence(passage, max_chars=650):
+        """Copy salient spoken sentences verbatim, never generate inferred facts."""
+        # Short bounded passages can have several unrelated topics. The
+        # selected evidence emphasizes specific amounts, decisions and actions.
+        sentences = [
+            item.strip() for item in
+            re.split(r"(?<=[.!?。])\s+|(?<=니다\.)\s+", passage)
+            if item.strip()
+        ]
+        cues = re.compile(
+            r"\d|연장|결제|기한|주문|배송|고객|지불|계약|"
+            r"예외|허용|승인|확정|검토|가능|보내|메일|"
+            r"납기|담당|조치|요청|예정|미정|"
+            r"extend|payment|order|invoice|cash.flow",
+            re.IGNORECASE,
+        )
+        ranked = sorted(
+            enumerate(sentences),
+            key=lambda pair: (not bool(cues.search(pair[1])), pair[0]),
+        )
+        chosen = []
+        remaining = max_chars
+        for _, sentence in ranked:
+            if not cues.search(sentence):
+                continue
+            if len(sentence) + 2 > remaining:
+                continue
+            chosen.append(sentence)
+            remaining -= len(sentence) + 2
+        return "\n".join(chosen)
+
     def _create_ai_summary(self, summary_path, korean_lines, server_path):
         """Run after the last caption has been persisted, without blocking Tk."""
         from streaming_pipeline import HyMT2Backend, hym_ready
@@ -761,7 +793,9 @@ class App:
             partials = []
             for i, part in enumerate(parts, 1):
                 self.events.put(("summary_status", f"AI 요약 작성 중 ({i}/{len(parts)})"))
-                partials.append(backend.summarize_korean(part))
+                partials.append(backend.summarize_korean(
+                    part, evidence=self._summary_evidence(part)
+                ))
             if len(partials) == 1:
                 result = partials[0]
             else:
@@ -775,6 +809,7 @@ class App:
                     "LiveTranslator · AI 회의 요약\n"
                     "요약 엔진: Hy-MT2 (로컬 / 오프라인)\n"
                     "참고: 음성 인식·번역 오류가 요약에도 반영될 수 있습니다.\n"
+                    "주의: 제안·검토·잠정 수락은 최종 계약 확정과 다릅니다.\n"
                     + "=" * 48 + "\n\n" + result + "\n"
                 )
         finally:
