@@ -95,6 +95,10 @@ class SentenceBuffer:
             self.first_at = now
             self.language = language
         if self.text:
+            if continuing and language == "en":
+                # Whisper put a false full stop at the chunk boundary.
+                # Restore the whole phrase before it reaches Hy-MT2.
+                self.text = re.sub(r"\.\s*$", "", self.text)
             joiner = "" if language in ("ja", "zh") else " "
             self.text += joiner
         self.text += fragment
