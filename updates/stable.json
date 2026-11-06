@@ -1,14 +1,14 @@
 {
-  "version": "0.6.29",
+  "version": "0.6.30",
   "min_bootstrap": "0.6.0",
-  "notes": "Improve incomplete payment-term clause joining and conservative Korean business idiom translation for current English utterance only. Preserve natural model outputs; never fabricate uncertain Whisper words. Unchanged ASR audio overlap, models, device selection, translation alternatives and TXT transcript storage. Windows syntax and 116 regression tests passed; real-audio accuracy requires user retest.",
+  "notes": "New clear online meeting (PC loopback playback) vs offline meeting (microphone input) mode selector. Shows only relevant audio devices, remembers one preferred device for each mode, displays guidance for each usage, and prevents switching sources mid-translation. Existing ASR/translation engines, v0.6.29 accuracy improvements, and transcripts preserved. Windows syntax and regression tests passed; local device audio test recommended.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.29/app_core.py",
-      "git_sha1": "96229f3102ce4795f90502c98bd3b5097a753241"
+      "path": "updates/v0.6.30/app_core.py",
+      "git_sha1": "bac33893525e7a69964e4c99c9fc1dd4a476c2ba"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.29/streaming_pipeline.py",
+      "path": "updates/v0.6.30/streaming_pipeline.py",
       "git_sha1": "4051e51834ba58c0bda631a4abc9d4f7c53fe171"
     }
   }
