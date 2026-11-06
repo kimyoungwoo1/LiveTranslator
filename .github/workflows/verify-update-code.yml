@@ -24,7 +24,7 @@ jobs:
       - name: Syntax check
         run: |
           python -m py_compile app_core.py updater.py streaming_pipeline.py launcher.py
-          python -m py_compile updates/v0.6.36/app_core.py updates/v0.6.36/streaming_pipeline.py
+          python -m py_compile updates/v0.6.37/app_core.py updates/v0.6.37/streaming_pipeline.py
           python -m unittest discover -s tests -p "test_patch_syntax.py" -v
-      - name: Regression - v0.6.36 model loading and idiom variants
+      - name: Regression - v0.6.37 automatic ASR UI and retained capture
         run: python -m unittest discover -s tests -v
