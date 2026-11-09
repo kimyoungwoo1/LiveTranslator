@@ -101,6 +101,18 @@ class SentenceBuffer:
                 return previous[:end.start(1)].rstrip(), incoming
         return previous, incoming
 
+    @staticmethod
+    def _clipped_restart(previous, incoming):
+        """Find two repeated words followed by a visibly completed word."""
+        tail = re.search(r"\b([a-z]+ [a-z]+) ([a-z]{4,})[.]?$",
+                         previous, re.IGNORECASE)
+        head = re.match(r"([a-z]+ [a-z]+) ([a-z]+)\b", incoming, re.IGNORECASE)
+        if tail and head and tail[1].casefold() == head[1].casefold():
+            clipped, complete = tail[2].casefold(), head[2].casefold()
+            if 2 <= len(complete) - len(clipped) <= 4 and complete.startswith(clipped):
+                return tail.start()
+        return None
+
     def _release_completed_prefix(self, now):
         """Emit coherent complete sentences but retain a dangling final clause.
 
@@ -135,7 +147,18 @@ class SentenceBuffer:
         if not fragment:
             return []
         results = []
-        if self.language and self.language != language:
+        restart = None
+        if language == self.language == "en" and self.awaiting_continuation:
+            restart = self._clipped_restart(self.text, fragment)
+        if restart is not None:
+            # Use the words the next chunk actually recognized, preserving
+            # the unrepeated prefix and its original sentence capitalization.
+            if restart:
+                fragment = fragment[0].lower() + fragment[1:]
+                self.text = self.text[:restart].rstrip()
+            else:
+                self.reset()
+        elif self.language and self.language != language:
             previous = self.flush()
             if previous:
                 results.append(previous)
@@ -213,15 +236,16 @@ class SentenceBuffer:
                     self.count = 1
                     self.last_fragment = pending_tail
         if (cut_mid_speech and language == "en" and self.count == 1
-                and not self.awaiting_continuation and self.text.endswith(".")):
+                and not self.awaiting_continuation and self.text.endswith(".")
+                and len(self.text) < self.max_chars):
             # A forced cut through speech can insert a false period. Release
             # earlier sentences and give only the last one a chance to join
             # a lowercase continuation in the next audio block.
             complete = self._release_completed_prefix(now)
             if complete:
                 results.append(complete)
-                self.awaiting_continuation = True
-                return results
+            self.awaiting_continuation = True
+            return results
         is_terminal = bool(not unfinished and not should_hold and
                            self.TERMINAL.search(self.text))
         bounded = (len(self.text) >= self.max_chars or

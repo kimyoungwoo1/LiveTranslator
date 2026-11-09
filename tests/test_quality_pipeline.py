@@ -56,6 +56,19 @@ class QualityTests(unittest.TestCase):
              ("I promise this is temporary.", "en")],
         )
 
+    def test_forced_cut_replaces_only_verified_clipped_word_restart(self):
+        buf = self.pipeline.SentenceBuffer(5)
+        self.assertEqual(buf.add("It's for an important custom.", "en", 0,
+                                 cut_mid_speech=True), [])
+        self.assertEqual(
+            buf.add("An important customer and they pay on delivery.", "en", 6),
+            [("It's for an important customer and they pay on delivery.", "en")],
+        )
+        self.assertEqual(buf.add("The order is ready.", "en", 7,
+                                 cut_mid_speech=True), [])
+        self.assertEqual(buf.add("Thank you.", "en", 13),
+                         [("The order is ready.", "en"), ("Thank you.", "en")])
+
     def test_forced_audio_cut_joins_conjunction_but_releases_prior_sentence(self):
         buf = self.pipeline.SentenceBuffer(5)
         self.assertEqual(

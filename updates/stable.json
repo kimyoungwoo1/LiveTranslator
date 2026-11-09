@@ -1,15 +1,15 @@
 {
-  "version": "0.6.49",
+  "version": "0.6.50",
   "min_bootstrap": "0.6.0",
-  "notes": "Preserve who is placing an order and correct literal patronage wording in English business dialogue.",
+  "notes": "After a forced audio cut, allow one following chunk to complete an English sentence and reconcile a clipped word when the neighboring chunk repeats two preceding words and contains the full word.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.49/app_core.py",
+      "path": "updates/v0.6.50/app_core.py",
       "git_sha1": "594dffc6c35260e2103d86dbd7e674fec6b3f1d7"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.49/streaming_pipeline.py",
-      "git_sha1": "efb928b7c0a0f96e0ac46fbe94be4c689c133951"
+      "path": "updates/v0.6.50/streaming_pipeline.py",
+      "git_sha1": "f6556581a9d7cd1782d6ee98feeb30b5e087f693"
     }
   }
 }
