@@ -827,7 +827,17 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
     """
     if source_lang != "en":
         return korean
+    english = " ".join(source.split())
+    if re.fullmatch(r"let me see what i can do[.!]?", english, re.IGNORECASE):
+        return "방법이 있는지 확인해 볼게요."
+
     fixed = korean
+    # Only repair the reported imperative when the English has an explicit
+    # third-person payer. A real payment instruction keeps its translation.
+    if re.fullmatch(r"(?:[^.!?]+ and )?they pay on delivery[.]?", english,
+                    re.IGNORECASE):
+        fixed = re.sub(r"결제는 물건을 받을 때 하세요(?=[.]?$)",
+                       "그쪽에서 물건을 받을 때 결제해요", fixed)
     # Correct only clearly inverted roles, without inventing absent speech.
     if re.search(r"\bI need a favou?r\b", source, re.IGNORECASE):
         fixed = re.sub(r"도와줄 일이 있어요", "부탁 하나 드리고 싶어요", fixed)
@@ -848,6 +858,7 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
             fixed,
         )
     if re.search(r"\bappreciate your business\b", source, re.IGNORECASE):
+        fixed = fixed.replace("고객님의 방문을 정말 고마워요", "거래해 주셔서 정말 감사해요")
         fixed = re.sub(r"(?:여러분의 |당신의 )?고객이 되어\s*주셔서",
                        "거래해 주셔서", fixed)
         fixed = re.sub(r"(?:당신의 |여러분의 )?고객님의 지원에 감사드립니다",
