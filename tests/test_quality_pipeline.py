@@ -56,6 +56,18 @@ class QualityTests(unittest.TestCase):
              ("I promise this is temporary.", "en")],
         )
 
+    def test_conjunction_joins_capitalized_subject_after_audio_boundary(self):
+        buf = self.pipeline.SentenceBuffer(5)
+        self.assertEqual(buf.add("I know there are usually 30 days but", "en", 0), [])
+        self.assertEqual(
+            buf.add("We're having some cash flow problems.", "en", 6),
+            [("I know there are usually 30 days but we're having some cash flow problems.", "en")],
+        )
+        self.assertEqual(buf.add("We have to manage our", "en", 7), [])
+        self.assertEqual(buf.add("I promise this won't become the norm.", "en", 13),
+                         [("We have to manage our", "en"),
+                          ("I promise this won't become the norm.", "en")])
+
     def test_leading_ellipsis_joins_pending_words_and_numbers(self):
         for first, following, expected in (
             ("This is a little...", "...difficult.", "This is a little difficult."),

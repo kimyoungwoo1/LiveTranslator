@@ -153,6 +153,15 @@ class SentenceBuffer:
             continued = re.sub(r"^(?:\.{2,}|…)\s*(?=\w)", "", fragment)
             explicit_continuation = continued != fragment
             fragment = continued
+        if (language == self.language == "en" and self.awaiting_continuation
+                and re.search(r"\b(?:but|because)$", self.text, re.IGNORECASE)
+                and re.match(
+                    r"^(?:We|They|You)(?:['’](?:re|ve|ll|d)\b| (?:are|have|will|can|cannot)\b)",
+                    fragment,
+                )):
+            # The previous chunk ended on a conjunction without punctuation.
+            # Whisper may capitalize the subject when it starts a new chunk.
+            fragment = fragment[0].lower() + fragment[1:]
         results = []
         restart = None
         if language == self.language == "en" and self.awaiting_continuation:

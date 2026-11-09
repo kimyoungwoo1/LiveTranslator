@@ -1,15 +1,15 @@
 {
-  "version": "0.6.51",
+  "version": "0.6.52",
   "min_bootstrap": "0.6.0",
-  "notes": "Join an English chunk beginning with a continuation ellipsis to its pending sentence, including when the next recognized token is a number.",
+  "notes": "Join selected capitalized subject clauses after a pending English fragment that ends with an unpunctuated but or because.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.51/app_core.py",
+      "path": "updates/v0.6.52/app_core.py",
       "git_sha1": "594dffc6c35260e2103d86dbd7e674fec6b3f1d7"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.51/streaming_pipeline.py",
-      "git_sha1": "327aff566d25af8314a2a7ef6eadaf404b75c3ab"
+      "path": "updates/v0.6.52/streaming_pipeline.py",
+      "git_sha1": "de7ede220d151c37cb6074121c2c0699da68dca2"
     }
   }
 }
