@@ -56,6 +56,26 @@ class QualityTests(unittest.TestCase):
              ("I promise this is temporary.", "en")],
         )
 
+    def test_forced_audio_cut_joins_conjunction_but_releases_prior_sentence(self):
+        buf = self.pipeline.SentenceBuffer(5)
+        self.assertEqual(
+            buf.add("The order arrived. I am calling about the invoice.", "en", 0,
+                    cut_mid_speech=True),
+            [("The order arrived.", "en")],
+        )
+        self.assertEqual(
+            buf.add("and the payment terms.", "en", 6),
+            [("I am calling about the invoice and the payment terms.", "en")],
+        )
+
+    def test_long_batch_splits_without_losing_words_or_splitting_titles(self):
+        split = self.pipeline._split_long_english_batch
+        text = ("We spoke to Dr. Morgan about the delivery. "
+                "They will pay in thirty days. The order is ready.")
+        units = split(text, limit=30)
+        self.assertEqual(" ".join(units), text)
+        self.assertEqual(units[0], "We spoke to Dr. Morgan about the delivery.")
+
     def test_repeated_audio_prefix_is_not_repeated_in_transcript(self):
         dedup = self.pipeline.strip_transcript_overlap
         self.assertEqual(
@@ -463,7 +483,7 @@ class QualityTests(unittest.TestCase):
         # receives exactly one joined audio block, not two recordings.
         source = (Path(__file__).resolve().parent.parent / "streaming_pipeline.py").read_text(encoding="utf-8")
         self.assertIn("block, overlap_tail = add_audio_context(", source)
-        self.assertIn("item = (time.monotonic(), block, rate)", source)
+        self.assertIn("item = (time.monotonic(), block, rate, cut_mid_speech)", source)
         self.assertIn("strip_transcript_overlap(", source)
 
     def test_quality_waits_for_pauses_after_minimum_context(self):

@@ -124,7 +124,7 @@ class SentenceBuffer:
         self.awaiting_continuation = self._likely_unfinished(pending, language)
         return complete, language
 
-    def add(self, fragment, language, now):
+    def add(self, fragment, language, now, *, cut_mid_speech=False):
         fragment = " ".join(fragment.strip().split())
         if not fragment:
             return []
@@ -212,6 +212,16 @@ class SentenceBuffer:
                     self.first_at = now
                     self.count = 1
                     self.last_fragment = pending_tail
+        if (cut_mid_speech and language == "en" and self.count == 1
+                and not self.awaiting_continuation and self.text.endswith(".")):
+            # A forced cut through speech can insert a false period. Release
+            # earlier sentences and give only the last one a chance to join
+            # a lowercase continuation in the next audio block.
+            complete = self._release_completed_prefix(now)
+            if complete:
+                results.append(complete)
+                self.awaiting_continuation = True
+                return results
         is_terminal = bool(not unfinished and not should_hold and
                            self.TERMINAL.search(self.text))
         bounded = (len(self.text) >= self.max_chars or
@@ -241,6 +251,25 @@ class SentenceBuffer:
                 results.append(completed)
         return results
 
+
+
+def _split_long_english_batch(text, limit=240):
+    """Bound long translation requests using recognized sentence boundaries."""
+    units = []
+    while len(text) > limit:
+        boundaries = [
+            match for match in re.finditer(r"[.!?]\s+(?=[A-Z])", text)
+            if not (match.group().startswith(".") and re.search(
+                r"(?:\b(?:Mr|Mrs|Ms|Dr|Prof|St|Jr|Sr|vs)|\b[A-Z])$",
+                text[:match.start()],
+            ))
+        ]
+        if not boundaries:
+            break
+        boundary = min(boundaries, key=lambda match: abs(match.start() + 1 - limit))
+        units.append(text[:boundary.start() + 1])
+        text = text[boundary.end():]
+    return units + [text]
 
 
 def resolve_capture_device(pa, selected):
@@ -730,7 +759,9 @@ _HYM_GLOSSARY = (
     (r"cash[ -]flow problems?", "현금 흐름 문제"),
     (r"payment terms", "결제 조건"),
     (r"plac(?:e[sd]?|ing) (?:an?|another) (?:new )?order", "주문하다"),
-    (r"make an exception|made an exception", "예외를 두다"),
+    (r"can make an exception|could make an exception", "예외로 처리할 수 있다"),
+    (r"(?<!can )(?<!could )make an exception|made an exception", "예외를 두다"),
+    (r"let me see what i can do", "방법이 있는지 확인해 볼게요"),
     (r"delivery confirmation", "배송 완료 확인"),
 )
 
@@ -1209,10 +1240,11 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
                 block, overlap_tail = add_audio_context(
                     block, overlap_tail, rate, quality_mode
                 )
+                cut_mid_speech = quality_mode and quiet_samples < int(rate * 0.28)
                 parts = []
                 count = 0
                 quiet_samples = 0
-                item = (time.monotonic(), block, rate)
+                item = (time.monotonic(), block, rate, cut_mid_speech)
                 try:
                     pending.put_nowait(item)
                 except queue.Full:
@@ -1302,7 +1334,7 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
     try:
         while not stop_event.is_set():
             try:
-                captured_at, samples, rate = pending.get(timeout=0.2)
+                captured_at, samples, rate, cut_mid_speech = pending.get(timeout=0.2)
             except queue.Empty:
                 if capture_done.is_set():
                     break
@@ -1389,14 +1421,18 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
                 continue
             emit_original(original)
             if assembler:
-                ready = assembler.add(original, source_lang, time.monotonic())
+                ready = assembler.add(original, source_lang, time.monotonic(),
+                                      cut_mid_speech=cut_mid_speech and pending.empty())
                 if not ready:
                     emit_status(
                         f"문장 완성 대기 · 음성 인식 {asr_seconds:.1f}초 · "
                         f"대기 {pending.qsize()}개 · 건너뜀 {skipped[0]}개"
                     )
                 for assembled_text, assembled_language in ready:
-                    deliver(assembled_text, assembled_language, captured_at, asr_seconds)
+                    units = (_split_long_english_batch(assembled_text)
+                             if assembled_language == "en" else [assembled_text])
+                    for unit in units:
+                        deliver(unit, assembled_language, captured_at, asr_seconds)
             else:
                 deliver(original, source_lang, captured_at, asr_seconds)
     finally:

@@ -1,15 +1,15 @@
 {
-  "version": "0.6.43",
+  "version": "0.6.44",
   "min_bootstrap": "0.6.0",
-  "notes": "Add a shared English-to-Korean business glossary to Hy-MT2. Relevant terms are provided as context for the current utterance. No account or model download is needed.",
+  "notes": "Keep the final sentence from a forced speech cut briefly so a recognized continuation can join it. Split long English translation batches at sentence boundaries and add business phrasing hints for checking options and granting exceptions.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.43/app_core.py",
+      "path": "updates/v0.6.44/app_core.py",
       "git_sha1": "3aba6754f01f84d236336192c0fceb9e8df0a610"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.43/streaming_pipeline.py",
-      "git_sha1": "78d715f0820a33e3b64928c00501789b5f9efd81"
+      "path": "updates/v0.6.44/streaming_pipeline.py",
+      "git_sha1": "e7310b6736464d6851f795644073d92a70fcea98"
     }
   }
 }
