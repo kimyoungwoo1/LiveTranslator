@@ -226,6 +226,20 @@ class HyMT2Tests(unittest.TestCase):
             "새 주문서를 이메일로 보내드릴게요. 메일이 오면 확인할게요.",
         )
 
+    def test_extension_variant_and_polite_goodbye(self):
+        fix = self.mod._repair_clear_korean_idiom_mistranslations
+        source = "You'd really be helping us out if you could extend it to 60 days?"
+        self.assertEqual(
+            fix(source, "60일로 늘려주시면 정말 큰 도움이 되실 거예요.", "en"),
+            "60일로 연장해 주시면 저희에게 큰 도움이 될 거예요.",
+        )
+        self.assertEqual(
+            fix(source, "60일로 늘려 주시면 정말 큰 도움이 되실 거예요.", "en"),
+            "60일로 연장해 주시면 저희에게 큰 도움이 될 거예요.",
+        )
+        self.assertEqual(fix("Goodbye.", "안녕.", "en"), "안녕히 계세요.")
+        self.assertEqual(fix("Hello.", "안녕.", "en"), "안녕.")
+
     def test_payment_translation_preserves_present_tense_and_beneficiary(self):
         fix = self.mod._repair_clear_korean_idiom_mistranslations
         self.assertEqual(

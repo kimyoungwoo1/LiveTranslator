@@ -1,15 +1,15 @@
 {
-  "version": "0.6.52",
+  "version": "0.6.53",
   "min_bootstrap": "0.6.0",
-  "notes": "Join selected capitalized subject clauses after a pending English fragment that ends with an unpunctuated but or because.",
+  "notes": "Preserve the recipient of help across Korean payment-extension wording variants and use a polite Korean farewell for standalone Goodbye.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.52/app_core.py",
+      "path": "updates/v0.6.53/app_core.py",
       "git_sha1": "594dffc6c35260e2103d86dbd7e674fec6b3f1d7"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.52/streaming_pipeline.py",
-      "git_sha1": "de7ede220d151c37cb6074121c2c0699da68dca2"
+      "path": "updates/v0.6.53/streaming_pipeline.py",
+      "git_sha1": "795e69c7e9ff92f6fd1b8c34694c7848df6f5b4a"
     }
   }
 }
