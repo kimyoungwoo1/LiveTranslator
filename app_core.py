@@ -1477,6 +1477,7 @@ class App:
 
     def capture_and_translate(self, selected, language, model_name, seconds, engine, api_key):
         hy_backend = None
+        diagnostics = None
         try:
             from faster_whisper import WhisperModel
             if engine == "argos":
@@ -1521,7 +1522,7 @@ class App:
                 candidate = translators[lang].translate(original)
                 return guard_argos_quantity(original, candidate)
 
-            run_stream(
+            skipped_audio, skipped_translation = run_stream(
                 selected=selected,
                 interval_seconds=seconds,
                 language=language,
@@ -1537,6 +1538,10 @@ class App:
                 emit_result=lambda original, translated: self.events.put(("result", (original, translated))),
                 stop_event=self.stop_signal,
             )
+            diagnostics = (
+                f"Whisper {model_name} · 기본 구간 {seconds}초 · "
+                f"처리 중 건너뛴 음성 {skipped_audio}개 · 번역 {skipped_translation}개"
+            )
         except Exception as exc:
             self.events.put(("error", str(exc)))
         finally:
@@ -1545,7 +1550,7 @@ class App:
                     hy_backend.stop()
                 except Exception:
                     pass
-            self.events.put(("ended", None))
+            self.events.put(("ended", diagnostics))
 
     def check_update(self):
         if self.running:
@@ -1693,6 +1698,12 @@ class App:
                     self.summary_running = False
                     self.status.set(f"AI 요약 TXT 생성 실패 · {data[:140]}")
                 elif kind == "ended":
+                    if data and self.session_record_path is not None:
+                        try:
+                            with self.session_record_path.open("a", encoding="utf-8") as handle:
+                                handle.write(f"\n[처리 진단]\n{data}\n")
+                        except OSError as exc:
+                            self.status.set(f"오류: 처리 진단 저장 실패 · {exc}")
                     self._model_loading_started = None
                     self._model_loading_name = None
                     self._start_ai_summary()
@@ -1704,7 +1715,7 @@ class App:
                         self.profile_combo.config(state="readonly")
                     self.stop_btn.config(state="disabled")
                     if self.stop_signal.is_set() and not self.status.get().startswith(("오류:", "오디오 캡처 오류:")):
-                        self.status.set("중지 완료")
+                        self.status.set(f"중지 완료 · {data}" if data else "중지 완료")
         except queue.Empty:
             pass
         if (self.running and self.capture_started_at is not None

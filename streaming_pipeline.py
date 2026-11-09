@@ -1460,3 +1460,4 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
         stop_event.set()
         thread.join(timeout=2)
         translation_thread.join(timeout=2)
+    return skipped[0], translated_dropped[0]

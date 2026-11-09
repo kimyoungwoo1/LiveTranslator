@@ -1,15 +1,15 @@
 {
-  "version": "0.6.46",
+  "version": "0.6.47",
   "min_bootstrap": "0.6.0",
-  "notes": "Improve Hy-MT2 phrasing for mutual benefit in a business context, email confirmation of a payment extension, and waiting for an email.",
+  "notes": "Record the Whisper model, capture interval and dropped audio and translation counts in the session TXT and the stop status.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.46/app_core.py",
-      "git_sha1": "3aba6754f01f84d236336192c0fceb9e8df0a610"
+      "path": "updates/v0.6.47/app_core.py",
+      "git_sha1": "594dffc6c35260e2103d86dbd7e674fec6b3f1d7"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.46/streaming_pipeline.py",
-      "git_sha1": "d92837da84e16d83dead68ebc336868539f19d12"
+      "path": "updates/v0.6.47/streaming_pipeline.py",
+      "git_sha1": "f2a431377e529afa763d04124552771f8b5de53e"
     }
   }
 }
