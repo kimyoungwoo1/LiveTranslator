@@ -1,15 +1,15 @@
 {
-  "version": "0.6.48",
+  "version": "0.6.49",
   "min_bootstrap": "0.6.0",
-  "notes": "Preserve present tense in payment-on-delivery statements, the beneficiary of a payment extension, and natural email follow-up wording.",
+  "notes": "Preserve who is placing an order and correct literal patronage wording in English business dialogue.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.48/app_core.py",
+      "path": "updates/v0.6.49/app_core.py",
       "git_sha1": "594dffc6c35260e2103d86dbd7e674fec6b3f1d7"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.48/streaming_pipeline.py",
-      "git_sha1": "29943135547995beea6a3c27f55321627d5a2d87"
+      "path": "updates/v0.6.49/streaming_pipeline.py",
+      "git_sha1": "efb928b7c0a0f96e0ac46fbe94be4c689c133951"
     }
   }
 }
