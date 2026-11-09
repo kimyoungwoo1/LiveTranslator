@@ -31,7 +31,7 @@ jobs:
       - name: Syntax check
         run: |
           python -m py_compile app_core.py updater.py streaming_pipeline.py launcher.py
-          python -m py_compile updates/v0.6.42/app_core.py updates/v0.6.42/streaming_pipeline.py
+          python -m py_compile updates/v0.6.43/app_core.py updates/v0.6.43/streaming_pipeline.py
           python -m unittest discover -s tests -p "test_patch_syntax.py" -v
-      - name: Regression - v0.6.42 recognition quality and clipped sentence boundaries
+      - name: Regression tests
         run: python -m unittest discover -s tests -v

@@ -185,6 +185,15 @@ class HyMT2Tests(unittest.TestCase):
         self.assertNotIn("PREVIOUS", prompt)
         self.assertNotIn("CURRENT (translate this only)", prompt)
 
+    def test_glossary_matches_phrases_and_not_ambiguous_words(self):
+        hint = self.mod._hym_glossary_hint
+        self.assertIn("주문하다", hint("They PLACED another new order.", "en"))
+        self.assertIn("물건을 받을 때 결제하다", hint("They pay  on delivery.", "en"))
+        self.assertIn("현금 흐름 문제", hint("We have cash-flow problems.", "en"))
+        self.assertEqual(hint("Run these commands in order.", "en"), "")
+        self.assertEqual(hint("They repay on delivery.", "en"), "")
+        self.assertEqual(hint("They pay on delivery.", "ja"), "")
+
     def test_business_idiom_guidance_uses_only_current_utterance(self):
         pick = self.mod._hym_current_text_guidance
         current = "And we appreciate your business, Andrea. It works both ways."
