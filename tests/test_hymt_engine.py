@@ -226,6 +226,23 @@ class HyMT2Tests(unittest.TestCase):
             "새 주문서를 이메일로 보내드릴게요. 메일이 오면 확인할게요.",
         )
 
+    def test_phone_call_preserves_medium_and_polite_register(self):
+        fix = self.mod._repair_clear_korean_idiom_mistranslations
+        visit = "청구서와 결제 조건에 대해 물어보러 왔습니다."
+        self.assertEqual(
+            fix("I'm calling about the invoice and the payment terms.", visit, "en"),
+            "청구서와 결제 조건 때문에 연락드렸어요.",
+        )
+        self.assertEqual(
+            fix("I came to ask about the invoice and the payment terms.", visit, "en"),
+            visit,
+        )
+        self.assertEqual(
+            fix("Hold on Andrea, let me see what I can do.",
+                "잠깐 기다려, 안드레아. 방법이 있는지 확인해 볼게요.", "en"),
+            "잠시만 기다려 주세요, 안드레아. 방법이 있는지 확인해 볼게요.",
+        )
+
     def test_extension_variant_and_polite_goodbye(self):
         fix = self.mod._repair_clear_korean_idiom_mistranslations
         source = "You'd really be helping us out if you could extend it to 60 days?"
