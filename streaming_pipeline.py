@@ -877,6 +877,13 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
         return "안녕히 계세요."
 
     fixed = korean
+    if re.fullmatch(r"i['’]m calling about the invoice and the payment terms[.]?",
+                    english, re.IGNORECASE):
+        fixed = re.sub(r"^청구서와 결제 조건에 대해 물어보러 왔습니다(?=[.]?$)",
+                       "청구서와 결제 조건 때문에 연락드렸어요", fixed)
+    if re.match(r"^hold on[, ]", english, re.IGNORECASE):
+        fixed = re.sub(r"^(?:잠깐|잠시) 기다려(?=[,.!]|$)",
+                       "잠시만 기다려 주세요", fixed)
     # Keep the first statement's tense and payer without touching a
     # following reply or a genuine payment instruction.
     first, separator, rest = fixed.partition(".")
