@@ -206,6 +206,21 @@ class HyMT2Tests(unittest.TestCase):
             "새 주문서를 이메일로 보내드릴게요. 메일이 오면 확인할게요.",
         )
 
+    def test_payment_translation_preserves_present_tense_and_beneficiary(self):
+        fix = self.mod._repair_clear_korean_idiom_mistranslations
+        self.assertEqual(
+            fix("It's for a customer and they pay on delivery. I see.",
+                "고객님한테 주는 물건이라서 물건을 받을 때 결제하셨어요. 알겠습니다.", "en"),
+            "고객님한테 주는 물건이라서 물건을 받을 때 결제해요. 알겠습니다.",
+        )
+        past = "물건을 받을 때 결제하셨어요."
+        self.assertEqual(fix("They paid on delivery.", past, "en"), past)
+        self.assertEqual(
+            fix("You'd really be helping us out if you could extend it to 60 days?",
+                "60일까지 연장해 주시면 정말 도움이 되실 거예요.", "en"),
+            "60일로 연장해 주시면 저희에게 큰 도움이 될 거예요.",
+        )
+
     def test_business_repairs_preserve_intent_and_payer(self):
         fix = self.mod._repair_clear_korean_idiom_mistranslations
         self.assertEqual(fix("Let me see what I can do.", "보여드릴게요.", "en"),
