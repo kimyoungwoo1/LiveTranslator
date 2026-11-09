@@ -879,13 +879,23 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
                        "서로에게 도움이 되는 일이에요", fixed)
         fixed = re.sub(r"(?:이건 |이것은 )?양방향으로 작동하는 관계(?:예요|입니다)",
                        "서로에게 도움이 되는 관계예요", fixed)
+    # Recognize the mutual-benefit reading when this batch opens with the
+    # idiom and also contains clear commercial context.
+    if (re.match(r"^it works both ways[.!](?:\s|$)", english, re.IGNORECASE)
+            and re.search(r"\b(?:payment terms|invoice|customer)\b", english, re.IGNORECASE)):
+        fixed = re.sub(r"^양방향으로 (?:모두 )?효과가 있어요(?=[.!?]|$)",
+                       "서로에게 도움이 되는 일이에요", fixed)
+    if re.search(r"\bquick email confirmation of the payment terms extension\b",
+                 english, re.IGNORECASE):
+        fixed = re.sub(r"결제 조건 (?:확장|연장)에 대한 빠른 이메일 확인을 보내주실 수 있나요",
+                       "결제 기한 연장 건을 이메일로 간단히 확인해 주실 수 있나요", fixed)
     if re.search(r"\bkeep an eye out for it\b", source, re.IGNORECASE):
         replacement = ("메일이 오면 확인할게요"
                        if re.search(r"\b(?:email|e-mail|mail)\b", source, re.IGNORECASE)
                        else "소식 기다릴게요")
         fixed = re.sub(r"(?:그걸|그것을|그것|그를)\s*(?:잘\s*)?지켜보겠습니다",
                        replacement, fixed)
-        fixed = re.sub(r"그걸 기대하며 주의를 기울이겠습니다",
+        fixed = re.sub(r"그걸 기대하며 (?:주의를 기울이겠습니다|지켜보겠습니다)",
                        replacement, fixed)
         fixed = re.sub(r"(?:그걸|그것을|그것)\s*(?:기대하며\s*)?(?:잘\s*)?지켜볼게요",
                        replacement, fixed)
