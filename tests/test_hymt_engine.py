@@ -205,6 +205,14 @@ class HyMT2Tests(unittest.TestCase):
             support,
         )
 
+    def test_confirmation_wording_preserves_the_following_reply(self):
+        fix = self.mod._repair_clear_korean_idiom_mistranslations
+        self.assertEqual(
+            fix("Can you send me a quick email confirmation of the payment terms extension? Sure.",
+                "결제 조건 연장에 대한 간단한 이메일 확인을 보내주실 수 있나요? 네.", "en"),
+            "결제 기한 연장 건을 이메일로 간단히 확인해 주실 수 있나요? 네.",
+        )
+
     def test_business_confirmation_and_follow_up_repairs(self):
         fix = self.mod._repair_clear_korean_idiom_mistranslations
         source = ("It works both ways. Thanks again. Can you send me a quick email "
