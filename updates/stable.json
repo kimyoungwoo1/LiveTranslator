@@ -1,15 +1,15 @@
 {
-  "version": "0.6.44",
+  "version": "0.6.45",
   "min_bootstrap": "0.6.0",
-  "notes": "Keep the final sentence from a forced speech cut briefly so a recognized continuation can join it. Split long English translation batches at sentence boundaries and add business phrasing hints for checking options and granting exceptions.",
+  "notes": "Correct clear Hy-MT2 mistranslations of checking options, third-person payment on delivery, and thanking a customer for their business.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.44/app_core.py",
+      "path": "updates/v0.6.45/app_core.py",
       "git_sha1": "3aba6754f01f84d236336192c0fceb9e8df0a610"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.44/streaming_pipeline.py",
-      "git_sha1": "e7310b6736464d6851f795644073d92a70fcea98"
+      "path": "updates/v0.6.45/streaming_pipeline.py",
+      "git_sha1": "3adb1c3ecc4048d54d91dbec729b6589facf187d"
     }
   }
 }

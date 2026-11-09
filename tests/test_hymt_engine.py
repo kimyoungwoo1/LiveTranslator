@@ -185,6 +185,21 @@ class HyMT2Tests(unittest.TestCase):
         self.assertNotIn("PREVIOUS", prompt)
         self.assertNotIn("CURRENT (translate this only)", prompt)
 
+    def test_business_repairs_preserve_intent_and_payer(self):
+        fix = self.mod._repair_clear_korean_idiom_mistranslations
+        self.assertEqual(fix("Let me see what I can do.", "보여드릴게요.", "en"),
+                         "방법이 있는지 확인해 볼게요.")
+        command = "결제는 물건을 받을 때 하세요."
+        self.assertEqual(fix("They pay on delivery.", command, "en"),
+                         "그쪽에서 물건을 받을 때 결제해요.")
+        self.assertEqual(fix("Please pay on delivery.", command, "en"), command)
+        self.assertEqual(fix("They pay on delivery?", command, "en"), command)
+        natural = "그 고객은 물건을 받을 때 결제합니다."
+        self.assertEqual(fix("They pay on delivery.", natural, "en"), natural)
+        self.assertEqual(fix("We appreciate your business.",
+                             "고객님의 방문을 정말 고마워요.", "en"),
+                         "거래해 주셔서 정말 감사해요.")
+
     def test_glossary_matches_phrases_and_not_ambiguous_words(self):
         hint = self.mod._hym_glossary_hint
         self.assertIn("주문하다", hint("They PLACED another new order.", "en"))
