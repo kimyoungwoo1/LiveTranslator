@@ -1,15 +1,15 @@
 {
-  "version": "0.6.57",
+  "version": "0.6.58",
   "min_bootstrap": "0.6.0",
-  "notes": "Keep explicitly recognized clock times attached to pending scheduling clauses and clarify received meeting agenda wording.",
+  "notes": "Join split availability questions, split long unpunctuated dialogue at recognized turn openers, and preserve meeting agenda wording.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.57/app_core.py",
+      "path": "updates/v0.6.58/app_core.py",
       "git_sha1": "594dffc6c35260e2103d86dbd7e674fec6b3f1d7"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.57/streaming_pipeline.py",
-      "git_sha1": "87271e43e72cc07440ae7fdb6fd04cc79187a04a"
+      "path": "updates/v0.6.58/streaming_pipeline.py",
+      "git_sha1": "af0423c0acee5e5e6fe31ddfd436d376c1f6c84d"
     }
   }
 }
