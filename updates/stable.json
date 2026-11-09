@@ -1,15 +1,15 @@
 {
-  "version": "0.6.55",
+  "version": "0.6.56",
   "min_bootstrap": "0.6.0",
-  "notes": "Assemble split English durations and clauses before translation, collapse restarted short discourse markers, and polish payment-extension confirmation wording.",
+  "notes": "Correct observed Hy-MT2 errors in network traffic, customer payment on delivery, and meeting agenda wording. Compared 12 fixed inputs through the real model.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.55/app_core.py",
+      "path": "updates/v0.6.56/app_core.py",
       "git_sha1": "594dffc6c35260e2103d86dbd7e674fec6b3f1d7"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.55/streaming_pipeline.py",
-      "git_sha1": "49d448afa270085218e6d64c82b14fbad4b2d60c"
+      "path": "updates/v0.6.56/streaming_pipeline.py",
+      "git_sha1": "d309acfeb07dd091f59e904e48c23191cf3e976c"
     }
   }
 }

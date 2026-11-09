@@ -917,7 +917,8 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
     # Keep the first statement's tense and payer without touching a
     # following reply or a genuine payment instruction.
     first, separator, rest = fixed.partition(".")
-    if re.match(r"^(?:[^.!?]+ and )?they pay on delivery(?:\.(?:\s|$)|$)",
+    if re.match(r"^(?:(?:[^.!?]+ and )?they pay|(?:the|our) (?:customer|client) pays)"
+                r" on delivery(?:\.(?:\s|$)|$)",
                 english, re.IGNORECASE):
         first = re.sub(r"결제는 물건을 받을 때 하세요$",
                        "그쪽에서 물건을 받을 때 결제해요", first)
@@ -942,6 +943,14 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
                        fixed, count=1)
         if re.search(r"\bthe same size order as last time\b", english, re.IGNORECASE):
             fixed = fixed.replace("지난번과 같은 크기의 주문", "지난번과 같은 규모의 주문", 1)
+    if re.search(r"\btraffic passes between the gateway and the server\b",
+                 english, re.IGNORECASE):
+        fixed = fixed.replace("게이트와 서버 사이로 차량이 지나갑니다",
+                              "게이트웨이와 서버 사이로 트래픽이 흐릅니다", 1)
+    if (re.match(r"^i['’]ll send the agenda[.](?:\s|$)", english, re.IGNORECASE)
+            and re.search(r"\bmeeting (?:link|invite)\b", english, re.IGNORECASE)):
+        fixed = re.sub(r"^프로그램을 보내(?=줄게요|드릴게요)",
+                       "회의 안건을 보내", fixed)
     # Correct only clearly inverted roles, without inventing absent speech.
     if re.search(r"\bI need a favou?r\b", source, re.IGNORECASE):
         fixed = re.sub(r"도와줄 일이 있어요", "부탁 하나 드리고 싶어요", fixed)
