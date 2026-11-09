@@ -190,7 +190,14 @@ class SentenceBuffer:
         # A held phrase gets exactly one next chunk to finish its thought,
         # even if ASR took longer than max_age. It never waits indefinitely:
         # the next utterance or silent flush closes the buffered sentence.
-        self.awaiting_continuation = should_hold
+        self.awaiting_continuation = should_hold or unfinished
+        if unfinished and language == "en":
+            # Ellipses are an ASR cut, not permission to merge a new speaker.
+            # Deliver complete earlier sentences now and retain only the tail.
+            complete = self._release_completed_prefix(now)
+            if complete:
+                results.append(complete)
+            self.awaiting_continuation = True
         if should_hold and language == "en":
             # Translate fully completed sentences right away; only the short
             # unfinished tail waits for the next audio chunk.

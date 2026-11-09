@@ -260,6 +260,9 @@ class App:
         if self.model.get() not in ("auto", "base", "small", "tiny"):
             self.model.set("auto")
         self.seconds = tk.StringVar(value=str(self.settings.get("seconds", 3)))
+        self.asr_profile = tk.StringVar(value=self.settings.get("asr_profile", "품질 우선"))
+        if self.asr_profile.get() not in ("품질 우선", "실시간 우선"):
+            self.asr_profile.set("품질 우선")
         self.save_enabled = tk.BooleanVar(value=self.settings.get("save", False))
         self.engine = tk.StringVar(value=self.settings.get("engine", "hymt"))
         self.overlay_enabled = tk.BooleanVar(value=False)
@@ -289,8 +292,9 @@ class App:
 
     def persist(self):
         SETTINGS.write_text(json.dumps({
-            "language": self.language.get(), "model": self._effective_asr_model(self.model.get()),
+            "language": self.language.get(), "model": self._recognition_options()[0],
             "asr_mode": self.model.get(),
+            "asr_profile": self.asr_profile.get(),
             "seconds": self.seconds.get(), "save": self.save_enabled.get(),
             "engine": self.engine.get(),
             "audio_device": self.settings.get("audio_device"),
@@ -478,7 +482,13 @@ class App:
         ttk.Combobox(row, values=["en", "ja", "ko", "auto"], state="readonly",
                      textvariable=self.language, width=8,
                      style="LT.TCombobox").pack(side="left", padx=(0, 22))
-        ttk.Label(row, text="음성 인식 · 자동 최적화", style="LTCardMuted.TLabel").pack(side="left", padx=(0, 22))
+        ttk.Label(row, text="음성 인식 · 자동 최적화", style="LTCardMuted.TLabel").pack(side="left", padx=(0, 8))
+        self.profile_combo = ttk.Combobox(
+            row, values=["품질 우선", "실시간 우선"], state="readonly",
+            textvariable=self.asr_profile, width=12, style="LT.TCombobox")
+        self.profile_combo.pack(side="left")
+        ttk.Label(source, text="자동 인식: 품질 우선은 small·5초 이상, 실시간 우선은 base. small 최초 사용 시 모델 다운로드가 필요합니다.",
+                  style="LTCardMuted.TLabel").pack(anchor="w", pady=(6, 0))
 
         self._update_mode_ui()
 
@@ -516,7 +526,7 @@ class App:
             style="LT.TCombobox"
         ).pack(side="left", padx=(0, 7))
         ttk.Label(
-            asr_row, text="초 · 자동 모드는 실시간 안정성을 우선하며 대기량에 맞춰 연산량을 조절합니다.",
+            asr_row, text="초 · 품질 우선은 최소 5초 문맥을 사용합니다. 모델을 직접 선택하면 해당 모델을 유지합니다.",
             style="LTCardMuted.TLabel"
         ).pack(side="left")
 
@@ -1271,6 +1281,19 @@ class App:
         """
         return requested if requested in ("tiny", "base", "small") else "base"
 
+    def _recognition_options(self):
+        """Resolve once per session; never change model weights mid-capture.
+
+        Quality uses more audio context and a stronger recognizer. Explicit
+        advanced model choices still win, including on low-powered CPUs.
+        """
+        requested = self.model.get()
+        profile = getattr(self, "asr_profile", None)
+        quality = profile is not None and profile.get() == "품질 우선"
+        model_name = "small" if quality and requested == "auto" else self._effective_asr_model(requested)
+        seconds = max(5, int(self.seconds.get())) if quality else int(self.seconds.get())
+        return model_name, seconds
+
     def diagnose_models(self):
         """Check selected speech and translation models without downloading new ones."""
         if self.running:
@@ -1283,7 +1306,7 @@ class App:
         if self._model_check_busy:
             return
         self._model_check_busy = True
-        model_name = self._effective_asr_model(self.model.get())
+        model_name, _ = self._recognition_options()
         lang = self.language.get()
         engine = self.engine.get()
         self.status.set("모델 진단 중 · 새 모델을 다운로드하지 않습니다...")
@@ -1438,7 +1461,10 @@ class App:
         self.start_btn.config(state="disabled")
         self.stop_btn.config(state="normal")
         self.status.set("음성 인식 모델을 초기화하는 중...")
-        self.worker = threading.Thread(target=self.capture_and_translate, args=(selected, self.language.get(), self._effective_asr_model(self.model.get()), int(self.seconds.get()), engine, api_key), daemon=True)
+        model_name, capture_seconds = self._recognition_options()
+        if hasattr(self, "profile_combo"):
+            self.profile_combo.config(state="disabled")
+        self.worker = threading.Thread(target=self.capture_and_translate, args=(selected, self.language.get(), model_name, capture_seconds, engine, api_key), daemon=True)
         self.worker.start()
 
     def stop(self):
@@ -1674,6 +1700,8 @@ class App:
                     self.set_live_indicator("idle")
                     self.capture_started_at = None
                     self.start_btn.config(state="normal")
+                    if hasattr(self, "profile_combo"):
+                        self.profile_combo.config(state="readonly")
                     self.stop_btn.config(state="disabled")
                     if self.stop_signal.is_set() and not self.status.get().startswith(("오류:", "오디오 캡처 오류:")):
                         self.status.set("중지 완료")
