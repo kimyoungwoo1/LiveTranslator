@@ -56,6 +56,25 @@ class QualityTests(unittest.TestCase):
              ("I promise this is temporary.", "en")],
         )
 
+    def test_leading_ellipsis_joins_pending_words_and_numbers(self):
+        for first, following, expected in (
+            ("This is a little...", "...difficult.", "This is a little difficult."),
+            ("I know they're usually...", "…30 days, but cash is tight.",
+             "I know they're usually 30 days, but cash is tight."),
+            ("I know they're usually", "...30 days.", "I know they're usually 30 days."),
+        ):
+            with self.subTest(first=first, following=following):
+                buf = self.pipeline.SentenceBuffer(5)
+                self.assertEqual(buf.add(first, "en", 0), [])
+                self.assertEqual(buf.add(following, "en", 6), [(expected, "en")])
+
+    def test_leading_ellipsis_without_pending_audio_stays_separate(self):
+        buf = self.pipeline.SentenceBuffer(5)
+        self.assertEqual(buf.add("The order arrived.", "en", 0),
+                         [("The order arrived.", "en")])
+        self.assertEqual(buf.add("...30 days passed.", "en", 6),
+                         [("...30 days passed.", "en")])
+
     def test_forced_cut_replaces_only_verified_clipped_word_restart(self):
         buf = self.pipeline.SentenceBuffer(5)
         self.assertEqual(buf.add("It's for an important custom.", "en", 0,

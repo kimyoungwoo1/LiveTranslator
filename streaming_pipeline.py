@@ -146,6 +146,13 @@ class SentenceBuffer:
             fragment = re.sub(r"(?:\s*\.{2,}|\s*…)[\"'”’]*$", "", fragment).rstrip()
         if not fragment:
             return []
+        explicit_continuation = False
+        if language == self.language == "en" and self.text and (
+            self.awaiting_continuation or not self.TERMINAL.search(self.text)
+        ):
+            continued = re.sub(r"^(?:\.{2,}|…)\s*(?=\w)", "", fragment)
+            explicit_continuation = continued != fragment
+            fragment = continued
         results = []
         restart = None
         if language == self.language == "en" and self.awaiting_continuation:
@@ -162,7 +169,8 @@ class SentenceBuffer:
             previous = self.flush()
             if previous:
                 results.append(previous)
-        elif self.awaiting_continuation and not self._likely_continuation(fragment):
+        elif (self.awaiting_continuation and not explicit_continuation
+              and not self._likely_continuation(fragment)):
             # Whisper sometimes emits "How?" before recognizing "How can I
             # help you?" in the next audio window. The latter repeats the
             # exact word, so it is a verified restart, not new speech.
