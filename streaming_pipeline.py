@@ -53,7 +53,7 @@ class SentenceBuffer:
         r"i'm not(?: sure)?|i am not(?: sure)?|need an extension|"
         # A Whisper chunk may stop after a partial *clause* even with '?' or '.'.
         # Hold only high-confidence tails rather than every short utterance.
-        r"it works both|let me see what i can|could we make it|"
+        r"it works both|let me see what i can|could we make it|do you have a minute|"
         r"(?:we're|we are) happy to help|"
         r"(?:how|what|where|when|why|who|which)|"
         r"^actually|^that['’]s|"
@@ -87,6 +87,9 @@ class SentenceBuffer:
     def _has_english_continuation(previous, incoming):
         """Recognize a grammatical continuation even after capitalization."""
         previous = previous.rstrip(".?").casefold()
+        if (previous.endswith("do you have a minute")
+                and re.match(r"^to (?:talk|discuss|go over)\b", incoming, re.IGNORECASE)):
+            return True
         if (re.search(r"\b(?:to|could we make it)$", previous)
                 and SentenceBuffer._starts_with_clock_time(incoming)):
             return True
@@ -250,6 +253,9 @@ class SentenceBuffer:
                 if (re.search(r"\bcould we make it\?$", self.text, re.IGNORECASE)
                         and self._starts_with_clock_time(fragment)):
                     self.text = self.text[:-1]
+                elif (self.text.casefold().endswith("do you have a minute?")
+                      and self._has_english_continuation(self.text, fragment)):
+                    self.text = self.text[:-1]
                 self.text = re.sub(r"\.\s*$", "", self.text)
                 if self.text.casefold() == "actually":
                     self.text += ","
@@ -348,11 +354,26 @@ def _split_long_english_batch(text, limit=240):
                 text[:match.start()],
             ))
         ]
-        if not boundaries:
+        if boundaries:
+            boundary = min(boundaries, key=lambda match: abs(match.start() + 1 - limit))
+            units.append(text[:boundary.start() + 1])
+            text = text[boundary.end():]
+            continue
+        # Whisper sometimes omits every full stop in a long exchange. A
+        # capitalized turn opener provides a fallback without cutting a word
+        # or assuming that every capitalized name is a new sentence.
+        offsets = [
+            match.start() for match in re.finditer(
+                r" (?=(?:Great\b|Okay\b|Don't worry about\b|See you then\b|"
+                r"This recording is from\b))", text,
+            )
+            if limit // 2 <= match.start() <= limit and len(text) - match.end() >= 24
+        ]
+        if not offsets:
             break
-        boundary = min(boundaries, key=lambda match: abs(match.start() + 1 - limit))
-        units.append(text[:boundary.start() + 1])
-        text = text[boundary.end():]
+        offset = offsets[-1]
+        units.append(text[:offset])
+        text = text[offset + 1:]
     return units + [text]
 
 
@@ -965,7 +986,8 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
         fixed = re.sub(r"^프로그램을 보내(?=줄게요|드릴게요)",
                        "회의 안건을 보내", fixed)
     if re.search(r"\bdid you get the agenda i sent out\?", english, re.IGNORECASE):
-        fixed = fixed.replace("제가 보낸 일정을 받으셨나요?", "제가 보낸 회의 안건을 받으셨나요?", 1)
+        fixed = re.sub(r"제가 보낸 (?:회의 )?일정을 받으셨나요\?",
+                       "제가 보낸 회의 안건을 받으셨나요?", fixed, count=1)
     # Correct only clearly inverted roles, without inventing absent speech.
     if re.search(r"\bI need a favou?r\b", source, re.IGNORECASE):
         fixed = re.sub(r"도와줄 일이 있어요", "부탁 하나 드리고 싶어요", fixed)

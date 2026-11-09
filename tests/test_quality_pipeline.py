@@ -56,6 +56,25 @@ class QualityTests(unittest.TestCase):
              ("I promise this is temporary.", "en")],
         )
 
+    def test_split_meeting_request_and_unpunctuated_turns(self):
+        buf = self.pipeline.SentenceBuffer(5)
+        self.assertEqual(buf.add("British Council. Hi Anna, do you have a minute?", "en", 0),
+                         [("British Council.", "en")])
+        self.assertEqual(
+            buf.add("to talk about the meeting next Tuesday. Sure, we said 11 didn't we?", "en", 6),
+            [("Hi Anna, do you have a minute to talk about the meeting next Tuesday. "
+              "Sure, we said 11 didn't we?", "en")],
+        )
+        split = self.pipeline._split_long_english_batch
+        text = ("I'm looking forward to presenting it Great I can tell Sven about the time change "
+                "I'll see him later Don't worry about telling Sven I'll send an email to everyone "
+                "to confirm the time has changed and with an updated meeting invite Great, thanks "
+                "Anna Okay, I'm happy that works for you")
+        pieces = split(text)
+        self.assertGreater(len(pieces), 1)
+        self.assertEqual(" ".join(pieces), text)
+        self.assertTrue(all(len(piece) <= 240 for piece in pieces))
+
     def test_meeting_time_joins_recognized_clock_fragments(self):
         buf = self.pipeline.SentenceBuffer(5)
         self.assertEqual(buf.add("We could postpone it to the afternoon to", "en", 0), [])
