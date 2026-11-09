@@ -53,7 +53,7 @@ class SentenceBuffer:
         r"i'm not(?: sure)?|i am not(?: sure)?|need an extension|"
         # A Whisper chunk may stop after a partial *clause* even with '?' or '.'.
         # Hold only high-confidence tails rather than every short utterance.
-        r"it works both|let me see what i can|"
+        r"it works both|let me see what i can|could we make it|"
         r"(?:we're|we are) happy to help|"
         r"(?:how|what|where|when|why|who|which)|"
         r"^actually|^that['’]s|"
@@ -77,9 +77,19 @@ class SentenceBuffer:
         return bool(text) and text[0].islower()
 
     @staticmethod
+    def _starts_with_clock_time(text):
+        return bool(re.match(
+            r"^(?:0?[1-9]|1[0-2])(?:[:.][0-5]\d)?\s*(?:[ap]\.?m\.?\b|o['’]clock\b)",
+            text, re.IGNORECASE,
+        ))
+
+    @staticmethod
     def _has_english_continuation(previous, incoming):
         """Recognize a grammatical continuation even after capitalization."""
-        previous = previous.rstrip(".").casefold()
+        previous = previous.rstrip(".?").casefold()
+        if (re.search(r"\b(?:to|could we make it)$", previous)
+                and SentenceBuffer._starts_with_clock_time(incoming)):
+            return True
         if re.search(r"\bto$", previous) and re.match(
             r"^\d+(?:[.,]\d+)? (?:days?|weeks?|months?|years?|hours?|minutes?)\b",
             incoming, re.IGNORECASE,
@@ -237,6 +247,9 @@ class SentenceBuffer:
             if continuing and language == "en":
                 # Whisper put a false full stop at the chunk boundary.
                 # Restore the whole phrase before it reaches Hy-MT2.
+                if (re.search(r"\bcould we make it\?$", self.text, re.IGNORECASE)
+                        and self._starts_with_clock_time(fragment)):
+                    self.text = self.text[:-1]
                 self.text = re.sub(r"\.\s*$", "", self.text)
                 if self.text.casefold() == "actually":
                     self.text += ","
@@ -951,6 +964,8 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
             and re.search(r"\bmeeting (?:link|invite)\b", english, re.IGNORECASE)):
         fixed = re.sub(r"^프로그램을 보내(?=줄게요|드릴게요)",
                        "회의 안건을 보내", fixed)
+    if re.search(r"\bdid you get the agenda i sent out\?", english, re.IGNORECASE):
+        fixed = fixed.replace("제가 보낸 일정을 받으셨나요?", "제가 보낸 회의 안건을 받으셨나요?", 1)
     # Correct only clearly inverted roles, without inventing absent speech.
     if re.search(r"\bI need a favou?r\b", source, re.IGNORECASE):
         fixed = re.sub(r"도와줄 일이 있어요", "부탁 하나 드리고 싶어요", fixed)
