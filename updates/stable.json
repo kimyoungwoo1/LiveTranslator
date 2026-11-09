@@ -1,15 +1,15 @@
 {
-  "version": "0.6.54",
+  "version": "0.6.55",
   "min_bootstrap": "0.6.0",
-  "notes": "Preserve the fact that the speaker is calling about billing and use a polite Korean register for Hold on.",
+  "notes": "Assemble split English durations and clauses before translation, collapse restarted short discourse markers, and polish payment-extension confirmation wording.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.54/app_core.py",
+      "path": "updates/v0.6.55/app_core.py",
       "git_sha1": "594dffc6c35260e2103d86dbd7e674fec6b3f1d7"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.54/streaming_pipeline.py",
-      "git_sha1": "e1cb00451ebd146970a8fb82d9abd489595fb10e"
+      "path": "updates/v0.6.55/streaming_pipeline.py",
+      "git_sha1": "49d448afa270085218e6d64c82b14fbad4b2d60c"
     }
   }
 }

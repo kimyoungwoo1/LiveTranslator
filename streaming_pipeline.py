@@ -56,6 +56,7 @@ class SentenceBuffer:
         r"it works both|let me see what i can|"
         r"(?:we're|we are) happy to help|"
         r"(?:how|what|where|when|why|who|which)|"
+        r"^actually|^that['’]s|"
         # Whisper can put a false period between 'some cash' and 'flow
         # problems'. Hold this narrowly defined noun phrase, not all 'cash'.
         r"(?:some|our|your|their|own)\s+cash|"
@@ -74,6 +75,23 @@ class SentenceBuffer:
         # signal that ASR cut an ongoing sentence, not a new speaker's turn.
         text = fragment.lstrip(" \"'“”")
         return bool(text) and text[0].islower()
+
+    @staticmethod
+    def _has_english_continuation(previous, incoming):
+        """Recognize a grammatical continuation even after capitalization."""
+        previous = previous.rstrip(".").casefold()
+        if re.search(r"\bto$", previous) and re.match(
+            r"^\d+(?:[.,]\d+)? (?:days?|weeks?|months?|years?|hours?|minutes?)\b",
+            incoming, re.IGNORECASE,
+        ):
+            return True
+        if re.search(r"\b(?:see|check|find out) what$", previous) and re.match(
+            r"^(?:I|We|You|They) (?:can|could|should|will)\b", incoming,
+        ):
+            return True
+        return previous == "actually" and bool(re.match(
+            r"^(?:I|We) (?:also |actually )?(?:want|need|have|would|can)\b", incoming,
+        ))
 
     @staticmethod
     def _carry_incomplete_word(previous, incoming, language):
@@ -166,6 +184,16 @@ class SentenceBuffer:
         restart = None
         if language == self.language == "en" and self.awaiting_continuation:
             restart = self._clipped_restart(self.text, fragment)
+            # A lone discourse marker can reappear at the start of the next
+            # recognition. Keep the longer recognition instead of both.
+            stub = self.text.rstrip(".").casefold()
+            if stub in ("and", "but", "actually", "that's", "that’s") and re.match(
+                re.escape(stub) + r"(?:,\s*|\s+)\w", fragment, re.IGNORECASE,
+            ):
+                restart = 0
+            explicit_continuation = explicit_continuation or self._has_english_continuation(
+                self.text, fragment,
+            )
         if restart is not None:
             # Use the words the next chunk actually recognized, preserving
             # the unrepeated prefix and its original sentence capitalization.
@@ -210,6 +238,8 @@ class SentenceBuffer:
                 # Whisper put a false full stop at the chunk boundary.
                 # Restore the whole phrase before it reaches Hy-MT2.
                 self.text = re.sub(r"\.\s*$", "", self.text)
+                if self.text.casefold() == "actually":
+                    self.text += ","
             elif language == "en":
                 self.text, fragment = self._carry_incomplete_word(
                     self.text, fragment, language
@@ -965,7 +995,7 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
                        "서로에게 도움이 되는 일이에요", fixed)
     if re.search(r"\bquick email confirmation of the payment terms extension\b",
                  english, re.IGNORECASE):
-        fixed = re.sub(r"결제 조건 (?:확장|연장)에 대한 빠른 이메일 확인을 보내주실 수 있나요",
+        fixed = re.sub(r"결제 조건 (?:확장|연장)에 대한 (?:빠른|간단한) 이메일 확인을 보내주실 수 있나요",
                        "결제 기한 연장 건을 이메일로 간단히 확인해 주실 수 있나요", fixed)
     if re.search(r"\bkeep an eye out for it\b", source, re.IGNORECASE):
         replacement = ("메일이 오면 확인할게요"

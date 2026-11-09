@@ -56,6 +56,34 @@ class QualityTests(unittest.TestCase):
              ("I promise this is temporary.", "en")],
         )
 
+    def test_session_boundary_replay_preserves_continuations_and_new_turns(self):
+        cases = (
+            ("You'd really be helping us out if you could extend it to",
+             "60 days. I'm not sure if I can do that, Andrea.",
+             ["You'd really be helping us out if you could extend it to 60 days. "
+              "I'm not sure if I can do that, Andrea."]),
+            ("Let me see what", "I can do. Yes, I think we can make an exception this time.",
+             ["Let me see what I can do. Yes, I think we can make an exception this time."]),
+            ("Actually", "I also want to place another new order.",
+             ["Actually, I also want to place another new order."]),
+            ("That's", "That's great, Junko. I appreciate your help.",
+             ["That's great, Junko. I appreciate your help."]),
+            ("And", "And I'll email you the new order.",
+             ["And I'll email you the new order."]),
+            ("We've got regulations and also have to manage our",
+             "I promise this won't become the norm.",
+             ["We've got regulations and also have to manage our",
+              "I promise this won't become the norm."]),
+            ("Please wait until I get to", "60 customers are on the line.",
+             ["Please wait until I get to", "60 customers are on the line."]),
+        )
+        for first, following, expected in cases:
+            with self.subTest(first=first, following=following):
+                buf = self.pipeline.SentenceBuffer(5)
+                self.assertEqual(buf.add(first, "en", 0), [])
+                self.assertEqual(buf.add(following, "en", 6),
+                                 [(text, "en") for text in expected])
+
     def test_conjunction_joins_capitalized_subject_after_audio_boundary(self):
         buf = self.pipeline.SentenceBuffer(5)
         self.assertEqual(buf.add("I know there are usually 30 days but", "en", 0), [])
