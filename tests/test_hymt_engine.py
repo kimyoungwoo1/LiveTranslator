@@ -234,6 +234,26 @@ class HyMT2Tests(unittest.TestCase):
             "새 주문서를 이메일로 보내드릴게요. 메일이 오면 확인할게요.",
         )
 
+    def test_cross_domain_translation_repairs_preserve_remaining_sentences(self):
+        fix = self.mod._repair_clear_korean_idiom_mistranslations
+        cases = (
+            ("Traffic passes between the gateway and the server. It works both ways. Thanks.",
+             "게이트와 서버 사이로 차량이 지나갑니다. 양방향으로 모두 작동합니다. 감사합니다.",
+             "게이트웨이와 서버 사이로 트래픽이 흐릅니다. 양방향으로 모두 작동합니다. 감사합니다."),
+            ("The customer pays on delivery. Please do not mark the order as paid yet.",
+             "고객이 물건을 받을 때 결제했습니다. 아직 결제된 것으로 표시하지 마세요.",
+             "고객이 물건을 받을 때 결제해요. 아직 결제된 것으로 표시하지 마세요."),
+            ("I'll send the agenda. Could you send me the meeting link?",
+             "프로그램을 보내줄게요. 회의 링크를 알려주실 수 있나요?",
+             "회의 안건을 보내줄게요. 회의 링크를 알려주실 수 있나요?"),
+            ("I'll send the program. Could you send me the meeting link?",
+             "프로그램을 보내줄게요. 회의 링크를 알려주실 수 있나요?",
+             "프로그램을 보내줄게요. 회의 링크를 알려주실 수 있나요?"),
+        )
+        for english, actual, expected in cases:
+            with self.subTest(english=english):
+                self.assertEqual(fix(english, actual, "en"), expected)
+
     def test_phone_call_preserves_medium_and_polite_register(self):
         fix = self.mod._repair_clear_korean_idiom_mistranslations
         visit = "청구서와 결제 조건에 대해 물어보러 왔습니다."
