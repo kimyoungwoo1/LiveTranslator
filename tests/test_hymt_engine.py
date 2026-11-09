@@ -185,6 +185,26 @@ class HyMT2Tests(unittest.TestCase):
         self.assertNotIn("PREVIOUS", prompt)
         self.assertNotIn("CURRENT (translate this only)", prompt)
 
+    def test_purchase_intent_and_business_appreciation(self):
+        fix = self.mod._repair_clear_korean_idiom_mistranslations
+        order = "지난번과 같은 크기의 주문을 또 해주고 싶어요."
+        self.assertEqual(
+            fix("We also want to place another new order. The same size order as last time.",
+                order, "en"),
+            "지난번과 같은 규모의 주문을 하나 더 넣고 싶어요.",
+        )
+        self.assertEqual(fix("We want to order it for you again.", order, "en"), order)
+        self.assertEqual(
+            fix("I appreciate your help. And we appreciate your business, Andrea.",
+                "도와주셔서 정말 감사합니다. 그리고 고객님의 지원도 정말 고마워요, 안드레아.", "en"),
+            "도와주셔서 정말 감사합니다. 그리고 거래해 주셔서 정말 감사해요, 안드레아.",
+        )
+        support = "거래해 주셔서 감사해요. 고객님의 지원도 정말 고마워요."
+        self.assertEqual(
+            fix("We appreciate your business. We appreciate your support too.", support, "en"),
+            support,
+        )
+
     def test_business_confirmation_and_follow_up_repairs(self):
         fix = self.mod._repair_clear_korean_idiom_mistranslations
         source = ("It works both ways. Thanks again. Can you send me a quick email "

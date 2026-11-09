@@ -852,6 +852,12 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
             f"{days}일까지 연장해 주시면 정말 도움이 되실 거예요",
             f"{days}일로 연장해 주시면 저희에게 큰 도움이 될 거예요",
         )
+    if re.match(r"^(?:actually,\s+)?(?:i|we) (?:also )?want to place another (?:new )?order\b",
+                english, re.IGNORECASE):
+        fixed = re.sub(r"주문을 또 해주고 싶어요", "주문을 하나 더 넣고 싶어요",
+                       fixed, count=1)
+        if re.search(r"\bthe same size order as last time\b", english, re.IGNORECASE):
+            fixed = fixed.replace("지난번과 같은 크기의 주문", "지난번과 같은 규모의 주문", 1)
     # Correct only clearly inverted roles, without inventing absent speech.
     if re.search(r"\bI need a favou?r\b", source, re.IGNORECASE):
         fixed = re.sub(r"도와줄 일이 있어요", "부탁 하나 드리고 싶어요", fixed)
@@ -873,6 +879,10 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
         )
     if re.search(r"\bappreciate your business\b", source, re.IGNORECASE):
         fixed = fixed.replace("고객님의 방문을 정말 고마워요", "거래해 주셔서 정말 감사해요")
+        if not re.search(r"\b(?:support|backing|assistance)\b", english, re.IGNORECASE):
+            fixed = re.sub(r"고객님의 지원도? (?:정말 )?고마워요",
+                           "거래해 주셔서 정말 감사해요", fixed, count=1)
+
         fixed = re.sub(r"(?:여러분의 |당신의 )?고객이 되어\s*주셔서",
                        "거래해 주셔서", fixed)
         fixed = re.sub(r"(?:당신의 |여러분의 )?고객님의 지원에 감사드립니다",
