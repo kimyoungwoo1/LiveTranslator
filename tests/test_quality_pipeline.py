@@ -56,6 +56,20 @@ class QualityTests(unittest.TestCase):
              ("I promise this is temporary.", "en")],
         )
 
+    def test_meeting_time_joins_recognized_clock_fragments(self):
+        buf = self.pipeline.SentenceBuffer(5)
+        self.assertEqual(buf.add("We could postpone it to the afternoon to", "en", 0), [])
+        self.assertEqual(
+            buf.add("1 p.m., for example. What would suit you? Could we make it?", "en", 6),
+            [("We could postpone it to the afternoon to 1 p.m., for example. "
+              "What would suit you?", "en")],
+        )
+        self.assertEqual(buf.add("9 o'clock? That would really help me.", "en", 12),
+                         [("Could we make it 9 o'clock? That would really help me.", "en")])
+        self.assertEqual(buf.add("Could we make it?", "en", 18), [])
+        self.assertEqual(buf.add("Yes, definitely.", "en", 24),
+                         [("Could we make it?", "en"), ("Yes, definitely.", "en")])
+
     def test_session_boundary_replay_preserves_continuations_and_new_turns(self):
         cases = (
             ("You'd really be helping us out if you could extend it to",

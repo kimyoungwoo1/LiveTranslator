@@ -234,6 +234,18 @@ class HyMT2Tests(unittest.TestCase):
             "새 주문서를 이메일로 보내드릴게요. 메일이 오면 확인할게요.",
         )
 
+    def test_received_agenda_is_not_a_schedule(self):
+        fix = self.mod._repair_clear_korean_idiom_mistranslations
+        korean = "제가 보낸 일정을 받으셨나요? 네, 받았어요."
+        self.assertEqual(
+            fix("Did you get the agenda I sent out? Yes, I did.", korean, "en"),
+            "제가 보낸 회의 안건을 받으셨나요? 네, 받았어요.",
+        )
+        self.assertEqual(
+            fix("Did you get the schedule I sent out? Yes, I did.", korean, "en"),
+            korean,
+        )
+
     def test_cross_domain_translation_repairs_preserve_remaining_sentences(self):
         fix = self.mod._repair_clear_korean_idiom_mistranslations
         cases = (
