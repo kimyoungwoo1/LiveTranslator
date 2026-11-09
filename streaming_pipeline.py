@@ -872,6 +872,10 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
     if re.fullmatch(r"let me see what i can do[.!]?", english, re.IGNORECASE):
         return "방법이 있는지 확인해 볼게요."
 
+    if (re.fullmatch(r"goodbye[.!]?", english, re.IGNORECASE)
+            and re.fullmatch(r"안녕[.!]?", korean.strip())):
+        return "안녕히 계세요."
+
     fixed = korean
     # Keep the first statement's tense and payer without touching a
     # following reply or a genuine payment instruction.
@@ -889,9 +893,11 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
     )
     if extension:
         days = extension.group(1)
-        fixed = fixed.replace(
-            f"{days}일까지 연장해 주시면 정말 도움이 되실 거예요",
+        fixed = re.sub(
+            rf"(?<![\d.,]){re.escape(days)}일(?:까지|로) (?:연장해|늘려)\s*주시면 "
+            r"(?:정말 )?(?:큰 )?도움이 되실 거예요(?=[.!?]|$)",
             f"{days}일로 연장해 주시면 저희에게 큰 도움이 될 거예요",
+            fixed, count=1,
         )
     if re.match(r"^(?:actually,\s+)?(?:i|we) (?:also )?want to place another (?:new )?order\b",
                 english, re.IGNORECASE):
