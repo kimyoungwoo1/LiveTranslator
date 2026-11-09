@@ -102,6 +102,10 @@ class SentenceBuffer:
             r"^(?:I|We|You|They) (?:can|could|should|will)\b", incoming,
         ):
             return True
+        if (re.search(r"(?:^|[.!?]\s+)(?:my|i)\b[^.!?]*\band$", previous)
+                and re.match(r"^I(?:['’](?:m|ve|ll|d)\b| (?:am|have|will|can)\b)", incoming)):
+            # Keep the same speaker's unfinished first-person clause together.
+            return True
         return previous == "actually" and bool(re.match(
             r"^(?:I|We) (?:also |actually )?(?:want|need|have|would|can)\b", incoming,
         ))
@@ -868,6 +872,9 @@ _HYM_GLOSSARY = (
     (r"(?<!can )(?<!could )make an exception|made an exception", "예외를 두다"),
     (r"let me see what i can do", "방법이 있는지 확인해 볼게요"),
     (r"delivery confirmation", "배송 완료 확인"),
+    (r"(?:updated )?meeting invit(?:e|ation)", "회의 초대장"),
+    (r"looking forward to presenting", "발표를 기대하다"),
+
 )
 
 
@@ -941,6 +948,11 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
         return "안녕히 계세요."
 
     fixed = korean
+    if re.search(r"\blooking forward to presenting (?:it|this)\b", english, re.IGNORECASE):
+        fixed = re.sub(r"제시할 날짜를 기대하고 있어요", "발표할 생각에 기대돼요", fixed, count=1)
+    if (re.search(r"\b(?:have|enjoy) a (?:good|great|nice|lovely) weekend\b", english, re.IGNORECASE)
+            and re.search(r"\byou too[.!?]?$", english, re.IGNORECASE)):
+        fixed = re.sub(r"당신도요[.!?]?\s*$", "네, 주말 잘 보내세요.", fixed)
     if re.fullmatch(r"i['’]m calling about the invoice and the payment terms[.]?",
                     english, re.IGNORECASE):
         fixed = re.sub(r"^청구서와 결제 조건에 대해 물어보러 왔습니다(?=[.]?$)",
@@ -1132,7 +1144,10 @@ class HyMT2Backend:
             f"Translate the following {lang} text into natural, polite Korean "
             "as spoken in a real conversation. Interpret common conversational "
             "idioms by their meaning. Preserve negation, questions, numbers, "
-            "amounts and proper names. Do not guess or add missing speech. "
+            "amounts and proper names. Preserve who will do each action and what "
+            "they will send or receive. Resolve references using nearby sentences "
+            "in the input and omit unnecessary Korean pronouns. "
+            "Do not guess or add missing speech. "
             + guidance +
             "Output only the Korean translation without explanation.\n\n" +
             text[:5000]

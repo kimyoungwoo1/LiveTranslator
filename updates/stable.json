@@ -1,15 +1,15 @@
 {
-  "version": "0.6.58",
+  "version": "0.6.59",
   "min_bootstrap": "0.6.0",
-  "notes": "Join split availability questions, split long unpunctuated dialogue at recognized turn openers, and preserve meeting agenda wording.",
+  "notes": "Keep first-person continuations together and preserve dialogue actions and meeting terminology in Hy-MT2.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.58/app_core.py",
+      "path": "updates/v0.6.59/app_core.py",
       "git_sha1": "594dffc6c35260e2103d86dbd7e674fec6b3f1d7"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.58/streaming_pipeline.py",
-      "git_sha1": "af0423c0acee5e5e6fe31ddfd436d376c1f6c84d"
+      "path": "updates/v0.6.59/streaming_pipeline.py",
+      "git_sha1": "14540b82b02317034523878991a255746d71902b"
     }
   }
 }
