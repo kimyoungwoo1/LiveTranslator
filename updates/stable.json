@@ -1,15 +1,15 @@
 {
-  "version": "0.6.45",
+  "version": "0.6.46",
   "min_bootstrap": "0.6.0",
-  "notes": "Correct clear Hy-MT2 mistranslations of checking options, third-person payment on delivery, and thanking a customer for their business.",
+  "notes": "Improve Hy-MT2 phrasing for mutual benefit in a business context, email confirmation of a payment extension, and waiting for an email.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.45/app_core.py",
+      "path": "updates/v0.6.46/app_core.py",
       "git_sha1": "3aba6754f01f84d236336192c0fceb9e8df0a610"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.45/streaming_pipeline.py",
-      "git_sha1": "3adb1c3ecc4048d54d91dbec729b6589facf187d"
+      "path": "updates/v0.6.46/streaming_pipeline.py",
+      "git_sha1": "d92837da84e16d83dead68ebc336868539f19d12"
     }
   }
 }
