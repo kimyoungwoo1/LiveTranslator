@@ -832,12 +832,26 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
         return "방법이 있는지 확인해 볼게요."
 
     fixed = korean
-    # Only repair the reported imperative when the English has an explicit
-    # third-person payer. A real payment instruction keeps its translation.
-    if re.fullmatch(r"(?:[^.!?]+ and )?they pay on delivery[.]?", english,
-                    re.IGNORECASE):
-        fixed = re.sub(r"결제는 물건을 받을 때 하세요(?=[.]?$)",
-                       "그쪽에서 물건을 받을 때 결제해요", fixed)
+    # Keep the first statement's tense and payer without touching a
+    # following reply or a genuine payment instruction.
+    first, separator, rest = fixed.partition(".")
+    if re.match(r"^(?:[^.!?]+ and )?they pay on delivery(?:\.(?:\s|$)|$)",
+                english, re.IGNORECASE):
+        first = re.sub(r"결제는 물건을 받을 때 하세요$",
+                       "그쪽에서 물건을 받을 때 결제해요", first)
+        first = re.sub(r"(물건을 받을 때 )결제(?:하셨어요|했어요|했습니다)$",
+                       r"\1결제해요", first)
+        fixed = first + separator + rest
+    extension = re.search(
+        r"\bhelping us out if you could extend it to ([0-9]+) days\b",
+        english, re.IGNORECASE,
+    )
+    if extension:
+        days = extension.group(1)
+        fixed = fixed.replace(
+            f"{days}일까지 연장해 주시면 정말 도움이 되실 거예요",
+            f"{days}일로 연장해 주시면 저희에게 큰 도움이 될 거예요",
+        )
     # Correct only clearly inverted roles, without inventing absent speech.
     if re.search(r"\bI need a favou?r\b", source, re.IGNORECASE):
         fixed = re.sub(r"도와줄 일이 있어요", "부탁 하나 드리고 싶어요", fixed)
@@ -895,6 +909,7 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
                        else "소식 기다릴게요")
         fixed = re.sub(r"(?:그걸|그것을|그것|그를)\s*(?:잘\s*)?지켜보겠습니다",
                        replacement, fixed)
+        fixed = fixed.replace("그걸 기대하고 있겠습니다", replacement)
         fixed = re.sub(r"그걸 기대하며 (?:주의를 기울이겠습니다|지켜보겠습니다)",
                        replacement, fixed)
         fixed = re.sub(r"(?:그걸|그것을|그것)\s*(?:기대하며\s*)?(?:잘\s*)?지켜볼게요",
