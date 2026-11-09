@@ -75,6 +75,18 @@ class QualityTests(unittest.TestCase):
         self.assertEqual(" ".join(pieces), text)
         self.assertTrue(all(len(piece) <= 240 for piece in pieces))
 
+    def test_first_person_continuation_preserves_the_referent(self):
+        buf = self.pipeline.SentenceBuffer(5)
+        self.assertEqual(buf.add("Thanks. My report is ready and", "en", 0),
+                         [("Thanks.", "en")])
+        self.assertEqual(
+            buf.add("I'm looking forward to presenting it.", "en", 6),
+            [("My report is ready and I'm looking forward to presenting it.", "en")],
+        )
+        self.assertEqual(buf.add("My report is ready and", "en", 12), [])
+        self.assertEqual(buf.add("Do you need help?", "en", 18),
+                         [("My report is ready and", "en"), ("Do you need help?", "en")])
+
     def test_meeting_time_joins_recognized_clock_fragments(self):
         buf = self.pipeline.SentenceBuffer(5)
         self.assertEqual(buf.add("We could postpone it to the afternoon to", "en", 0), [])

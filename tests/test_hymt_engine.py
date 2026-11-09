@@ -234,6 +234,18 @@ class HyMT2Tests(unittest.TestCase):
             "새 주문서를 이메일로 보내드릴게요. 메일이 오면 확인할게요.",
         )
 
+    def test_meeting_translation_preserves_presentation_and_weekend_reply(self):
+        fix = self.mod._repair_clear_korean_idiom_mistranslations
+        self.assertEqual(fix("I'm looking forward to presenting it.",
+                             "제시할 날짜를 기대하고 있어요.", "en"),
+                         "발표할 생각에 기대돼요.")
+        self.assertEqual(fix("Have a good weekend. You too.",
+                             "주말 잘 보내세요. 당신도요.", "en"),
+                         "주말 잘 보내세요. 네, 주말 잘 보내세요.")
+        self.assertEqual(fix("You too.", "당신도요.", "en"), "당신도요.")
+        hint = self.mod._hym_glossary_hint("I'll send an updated meeting invite.", "en")
+        self.assertIn("updated meeting invite = 회의 초대장", hint)
+
     def test_received_agenda_is_not_a_schedule(self):
         fix = self.mod._repair_clear_korean_idiom_mistranslations
         korean = "제가 보낸 회의 일정을 받으셨나요? 네, 받았어요."
