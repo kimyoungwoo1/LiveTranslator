@@ -723,6 +723,36 @@ def setup_hym(folder, progress, custom_path=None, cancel=None):
     progress("Hy-MT2 모델과 공식 llama.cpp CPU 실행기 설치 완료")
 
 
+# Shared by every installation through the existing app update package.
+# Prefer unambiguous expressions over single words with several meanings.
+_HYM_GLOSSARY = (
+    (r"pay(?:s|ing)? on delivery|paid on delivery", "물건을 받을 때 결제하다"),
+    (r"cash[ -]flow problems?", "현금 흐름 문제"),
+    (r"payment terms", "결제 조건"),
+    (r"plac(?:e[sd]?|ing) (?:an?|another) (?:new )?order", "주문하다"),
+    (r"make an exception|made an exception", "예외를 두다"),
+    (r"delivery confirmation", "배송 완료 확인"),
+)
+
+
+def _hym_glossary_hint(text, source_lang):
+    """Return a small glossary for terms found in the current English text."""
+    if source_lang != "en":
+        return ""
+    normalized = " ".join(text.split())
+    matches = []
+    for pattern, korean in _HYM_GLOSSARY:
+        match = re.search(r"\b(?:" + pattern + r")\b", normalized, re.IGNORECASE)
+        if match:
+            matches.append(f"{match.group()} = {korean}")
+        if len(matches) == 3:
+            break
+    if not matches:
+        return ""
+    return ("Terminology (adapt grammar to the source; preserve who does what): "
+            + "; ".join(matches) + ". ")
+
+
 def _hym_current_text_guidance(text, source_lang):
     """Optional short style hint based solely on this translation input.
 
@@ -889,7 +919,8 @@ class HyMT2Backend:
         # send only the current recognized utterance, never dialogue history.
         # Style guidance is selected solely from CURRENT text and contains
         # no previous dialogue or separate passage to translate.
-        guidance = _hym_current_text_guidance(text, source_lang)
+        guidance = (_hym_current_text_guidance(text, source_lang)
+                    + _hym_glossary_hint(text, source_lang))
         prompt = (
             f"Translate the following {lang} text into natural, polite Korean "
             "as spoken in a real conversation. Interpret common conversational "

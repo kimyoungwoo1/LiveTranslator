@@ -1,15 +1,15 @@
 {
-  "version": "0.6.42",
+  "version": "0.6.43",
   "min_bootstrap": "0.6.0",
-  "notes": "Add 품질 우선 recognition: automatic small CPU INT8 and at least 5 seconds of audio context. 실시간 우선 retains automatic base and the saved interval; explicit advanced model choices remain respected. First small-model use may download about 460 MB and uses more CPU/RAM. Release complete sentences before clipped ellipsis tails, and do not merge a clearly new utterance into them. Same-recording offline replay reduced English word errors from 39 to 27; live Windows performance varies. Keep the current Hy-MT2 prompt, models, engine choices and TXT/AI summaries. No new EXE required.",
+  "notes": "Add a shared English-to-Korean business glossary to Hy-MT2. Relevant terms are provided as context for the current utterance. No account or model download is needed.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.42/app_core.py",
+      "path": "updates/v0.6.43/app_core.py",
       "git_sha1": "3aba6754f01f84d236336192c0fceb9e8df0a610"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.42/streaming_pipeline.py",
-      "git_sha1": "0d5dd9e4c41a1f347c537094c0f66facfc34e166"
+      "path": "updates/v0.6.43/streaming_pipeline.py",
+      "git_sha1": "78d715f0820a33e3b64928c00501789b5f9efd81"
     }
   }
 }
