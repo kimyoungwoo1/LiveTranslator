@@ -546,8 +546,14 @@ class App:
                  "Google Cloud는 API 요금 및 외부 텍스트 전송이 발생할 수 있습니다.",
             style="LTCardMuted.TLabel")
 
+        self.setup_panels = (mode_card, source, engine_card)
+        self.setup_collapsed = False
         actions = ttk.Frame(outer, style="LT.TFrame")
         actions.pack(fill="x", pady=(1, 9))
+        self.setup_toggle_btn = ttk.Button(
+            actions, text="설정 접기 ▴", command=self.toggle_setup_panels,
+            style="LT.TButton")
+        self.setup_toggle_btn.pack(side="right", padx=(8, 0))
         self.start_btn = ttk.Button(actions, text="▶  번역 시작", command=self.start,
                                     style="LTPrimary.TButton")
         self.start_btn.pack(side="left", padx=(0, 7))
@@ -599,6 +605,7 @@ class App:
                    style="LT.TButton").pack(side="right", padx=(0, 7))
 
         transcript = ttk.Panedwindow(outer, orient="vertical")
+        self.transcript_splitter = transcript
         transcript.pack(fill="both", expand=True, pady=(0, 7))
 
         def transcript_pane(label_text):
@@ -624,6 +631,9 @@ class App:
         ko_pane, self.translated = transcript_pane("한국어 번역  /  Translation")
         transcript.add(orig_pane, weight=1)
         transcript.add(ko_pane, weight=1)
+        self._last_transcript_height = 0
+        transcript.bind("<Configure>", self._on_transcript_resize)
+        self.root.after_idle(self._balance_transcript_panes)
 
         self.overlay = tk.Toplevel(self.root)
         self.overlay.title("LiveTranslator 자막")
@@ -660,6 +670,52 @@ class App:
             self.live_label.configure(text="● 중지 중", fg="#f9bd79")
         else:
             self.live_label.configure(text="● 대기 중", fg="#36d2a0")
+
+    def _balance_transcript_panes(self):
+        """Initialize a visibly balanced transcript layout after Tk geometry settles."""
+        splitter = getattr(self, "transcript_splitter", None)
+        if splitter is None:
+            return
+        try:
+            if len(splitter.panes()) == 2:
+                height = splitter.winfo_height()
+                if height > 2:
+                    splitter.sashpos(0, height // 2)
+                    self._last_transcript_height = height
+        except tk.TclError:
+            pass
+
+    def _on_transcript_resize(self, event=None):
+        """Keep the original and Korean panes equally usable as height changes."""
+        splitter = getattr(self, "transcript_splitter", None)
+        if splitter is None:
+            return
+        height = splitter.winfo_height()
+        if height <= 2 or height == self._last_transcript_height:
+            return
+        self._last_transcript_height = height
+        try:
+            splitter.sashpos(0, height // 2)
+        except tk.TclError:
+            pass
+
+    def _set_setup_collapsed(self, collapsed):
+        """Recover space for subtitles without removing audio or engine controls."""
+        if self.setup_collapsed == collapsed:
+            return
+        self.setup_collapsed = collapsed
+        for panel in self.setup_panels:
+            if collapsed:
+                panel.pack_forget()
+            else:
+                panel.pack(before=self.start_btn.master, fill="x", pady=(0, 9))
+        self.setup_toggle_btn.configure(
+            text="설정 펼치기 ▾" if collapsed else "설정 접기 ▴"
+        )
+        self.root.after_idle(self._balance_transcript_panes)
+
+    def toggle_setup_panels(self):
+        self._set_setup_collapsed(not self.setup_collapsed)
 
     def open_transcripts_folder(self):
         """Open the saved records folder, not just its path."""
@@ -1466,6 +1522,7 @@ class App:
             self.profile_combo.config(state="disabled")
         self.worker = threading.Thread(target=self.capture_and_translate, args=(selected, self.language.get(), model_name, capture_seconds, engine, api_key), daemon=True)
         self.worker.start()
+        self._set_setup_collapsed(True)
 
     def stop(self):
         if not self.running:
