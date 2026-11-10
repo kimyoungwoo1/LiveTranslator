@@ -83,6 +83,22 @@ class DashboardTests(unittest.TestCase):
         self.assertIn('최초 다운로드', ui)
         self.assertIn('self._model_loading_started = None', ui)
 
+    def test_running_translation_reclaims_height_for_two_subtitle_panes(self):
+        ui = ast.get_source_segment(SRC, app_method("build_ui"))
+        start = ast.get_source_segment(SRC, app_method("start"))
+        collapse = ast.get_source_segment(SRC, app_method("_set_setup_collapsed"))
+        resize = ast.get_source_segment(SRC, app_method("_on_transcript_resize"))
+        balance = ast.get_source_segment(SRC, app_method("_balance_transcript_panes"))
+        self.assertIn('self.setup_panels = (mode_card, source, engine_card)', ui)
+        self.assertIn('command=self.toggle_setup_panels', ui)
+        self.assertIn('self.transcript_splitter = transcript', ui)
+        self.assertIn('transcript.bind("<Configure>", self._on_transcript_resize)', ui)
+        self.assertIn('self._set_setup_collapsed(True)', start)
+        self.assertIn('panel.pack_forget()', collapse)
+        self.assertIn('panel.pack(before=self.start_btn.master', collapse)
+        self.assertIn('splitter.sashpos(0, height // 2)', resize)
+        self.assertIn('splitter.sashpos(0, height // 2)', balance)
+
     def test_both_transcript_boxes_and_overlay_are_preserved(self):
         ui = ast.get_source_segment(SRC, app_method("build_ui"))
         self.assertIn('transcript_pane("원문', ui)
