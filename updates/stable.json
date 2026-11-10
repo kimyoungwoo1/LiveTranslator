@@ -1,14 +1,14 @@
 {
-  "version": "0.6.59",
+  "version": "0.6.60",
   "min_bootstrap": "0.6.0",
-  "notes": "Keep first-person continuations together and preserve dialogue actions and meeting terminology in Hy-MT2.",
+  "notes": "Fix cramped Korean translation panel on typical laptop-height screens: automatically collapse the large meeting mode/source/translation-engine setup panels when translation starts so the original and Korean transcript panes receive usable vertical space. Provide a visible setup expand/collapse button during and after the session, and balance the two transcript panes on initialization and window height changes. Keep footer, status, live audio selection, translation and TXT recording functionality. Guard setup collapse in minimal/headless start contexts. Windows syntax check and 172 regression tests passed.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.59/app_core.py",
-      "git_sha1": "594dffc6c35260e2103d86dbd7e674fec6b3f1d7"
+      "path": "updates/v0.6.60/app_core.py",
+      "git_sha1": "fed2e5a3a50ec5efe6ba98b4dacb828720072535"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.59/streaming_pipeline.py",
+      "path": "updates/v0.6.60/streaming_pipeline.py",
       "git_sha1": "14540b82b02317034523878991a255746d71902b"
     }
   }
