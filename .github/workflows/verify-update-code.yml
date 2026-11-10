@@ -31,7 +31,7 @@ jobs:
       - name: Syntax check
         run: |
           python -m py_compile app_core.py updater.py streaming_pipeline.py launcher.py
-          python -m py_compile updates/v0.6.59/app_core.py updates/v0.6.59/streaming_pipeline.py
+          python -m py_compile updates/v0.6.60/app_core.py updates/v0.6.60/streaming_pipeline.py
           python -m unittest discover -s tests -p "test_patch_syntax.py" -v
-      - name: Regression tests
+      - name: Regression tests - v0.6.60 layout
         run: python -m unittest discover -s tests -v
