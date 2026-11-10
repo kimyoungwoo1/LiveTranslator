@@ -701,6 +701,8 @@ class App:
 
     def _set_setup_collapsed(self, collapsed):
         """Recover space for subtitles without removing audio or engine controls."""
+        if not hasattr(self, "setup_panels") or not hasattr(self, "setup_toggle_btn"):
+            return
         if self.setup_collapsed == collapsed:
             return
         self.setup_collapsed = collapsed
