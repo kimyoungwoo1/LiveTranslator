@@ -1,0 +1,135 @@
+name: Release Windows ZIP
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/workflows/release-windows.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Select and verify the stable source
+        id: version
+        shell: pwsh
+        run: |
+          @'
+          import json
+          import os
+          from pathlib import Path
+
+          import updater
+
+          manifest = updater._validate_manifest(
+              json.loads(Path("updates/stable.json").read_text(encoding="utf-8"))
+          )
+          for name, entry in manifest["files"].items():
+              data = Path(entry["path"]).read_bytes()
+              if updater._object_sha(data) != entry["git_sha1"]:
+                  raise SystemExit(f"{name}: stable source failed verification")
+              Path(name).write_bytes(data)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              print(f'version={manifest["version"]}', file=output)
+          '@ | python -
+      - name: Validate the source
+        run: python -m unittest discover -s tests -v
+      - name: Install build dependencies
+        run: python -m pip install -r requirements.txt pyinstaller
+      - name: Build the versioned application
+        env:
+          LT_VERSION: ${{ steps.version.outputs.version }}
+        shell: pwsh
+        run: |
+          @'
+          import os
+          from pathlib import Path
+          import re
+
+          path = Path("updater.py")
+          code, count = re.subn(r'^BASE_VERSION = "[\d.]+"$',
+                                f'BASE_VERSION = "{os.environ["LT_VERSION"]}"',
+                                path.read_text(encoding="utf-8"), flags=re.M)
+          if count != 1:
+              raise SystemExit("Bundled version could not be set")
+          path.write_text(code, encoding="utf-8")
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m PyInstaller --noconfirm --clean --onedir --windowed --name LiveTranslator --collect-all faster_whisper --collect-all ctranslate2 --collect-all argostranslate --collect-all minisbd launcher.py
+      - name: Verify the executable on a clean profile
+        env:
+          LT_VERSION: ${{ steps.version.outputs.version }}
+        shell: pwsh
+        run: |
+          $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP "LiveTranslator-smoke"
+          $exe = (Resolve-Path "dist/LiveTranslator/LiveTranslator.exe").Path
+          $test = Start-Process -FilePath $exe -ArgumentList "--self-test" -PassThru -Wait
+          if ($test.ExitCode -ne 0) { throw "Runtime imports failed: $($test.ExitCode)" }
+          $app = Start-Process -FilePath $exe -PassThru
+          try {
+            for ($attempt = 0; $attempt -lt 30; $attempt++) {
+              Start-Sleep -Seconds 1
+              $app.Refresh()
+              if ($app.HasExited) { throw "App exited during launch: $($app.ExitCode)" }
+              if ($app.MainWindowTitle.StartsWith("LiveTranslator v$env:LT_VERSION ")) { exit 0 }
+            }
+            throw "Expected v$env:LT_VERSION window did not open"
+          } finally {
+            if (!$app.HasExited) { Stop-Process -Id $app.Id }
+          }
+      - name: Create the portable ZIP
+        env:
+          LT_VERSION: ${{ steps.version.outputs.version }}
+        run: python -c "import os, shutil; shutil.make_archive('LiveTranslator-v' + os.environ['LT_VERSION'] + '-Windows-x64', 'zip', 'dist', 'LiveTranslator')"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-zip
+          path: LiveTranslator-v*-Windows-x64.zip
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 3
+
+  publish:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-release-zip
+      - name: Publish the verified ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LT_VERSION: ${{ needs.build.outputs.version }}
+        shell: bash
+        run: |
+          tag="v$LT_VERSION"
+          zip="LiveTranslator-$tag-Windows-x64.zip"
+          test -s "$zip"
+          {
+            printf 'Windows x64용 LiveTranslator %s 배포본입니다.\n\n' "$tag"
+            cat <<'EOF'
+          1. ZIP 전체를 풀고 `LiveTranslator.exe`를 실행하세요.
+          2. 처음에는 앱에서 **Hy-MT2 설치**를 누르세요. 첫 번역을 시작할 때 Whisper 모델도 다운로드됩니다.
+          3. 이후 버전은 앱의 **업데이트 확인**에서 받을 수 있습니다.
+          EOF
+            printf '\nZIP SHA-256: `%s`\n' "$(sha256sum "$zip" | cut -d ' ' -f 1)"
+          } > release-notes.md
+          gh release create "$tag" "$zip" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "LiveTranslator $tag" --notes-file release-notes.md
