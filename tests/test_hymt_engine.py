@@ -362,6 +362,39 @@ class HyMT2Tests(unittest.TestCase):
         )
         self.assertIn("watch for", pick("I'll keep an eye out for it.", "en"))
 
+    def test_network_diagnostics_keep_terms_and_test_conditions(self):
+        source = ("We'll collect logs with ZPA inspection enabled. "
+                  "In the second test, SSL inspection was disabled.")
+        hint = self.mod._hym_glossary_hint(source, "en")
+        self.assertIn("SSL inspection = SSL 검사", hint)
+        self.assertIn("collect logs = 로그를 수집하다", hint)
+        guidance = self.mod._hym_current_text_guidance(source, "en")
+        self.assertIn("the feature and its enabled, disabled, or bypassed state", guidance)
+        self.assertIn("test plans separate from measured results", guidance)
+        self.assertEqual(self.mod._hym_current_text_guidance(
+            "This feature is disabled.", "en"), "")
+
+    def test_application_segment_repair_does_not_change_a_real_section(self):
+        repair = self.mod._repair_clear_korean_idiom_mistranslations
+        self.assertEqual(
+            repair("Open the application segment.", "애플리케이션 섹션을 여세요.", "en"),
+            "애플리케이션 세그먼트를 여세요.",
+        )
+        korean = "애플리케이션 섹션에서 애플리케이션 세그먼트를 찾으세요."
+        self.assertEqual(repair(
+            "Find the application segment in the application section.", korean, "en"),
+            korean,
+        )
+
+    def test_inspection_switch_shorthand_preserves_targets(self):
+        expand = self.mod._expand_inspection_switch_states
+        self.assertEqual(
+            expand("ZPA inspection on and ZIA inspection off, it was still slow."),
+            "ZPA inspection enabled and ZIA inspection disabled, it was still slow.",
+        )
+        text = "We ran SSL inspection on the test laptop."
+        self.assertEqual(expand(text), text)
+
     def test_business_hint_does_not_include_prior_speech_or_modify_source(self):
         backend = self.mod.HyMT2Backend("unused")
         backend.port = 14811

@@ -874,8 +874,35 @@ _HYM_GLOSSARY = (
     (r"delivery confirmation", "배송 완료 확인"),
     (r"(?:updated )?meeting invit(?:e|ation)", "회의 초대장"),
     (r"looking forward to presenting", "발표를 기대하다"),
-
+    (r"application segments?", "애플리케이션 세그먼트"),
+    (r"SSL inspection", "SSL 검사"),
+    (r"TLS inspection", "TLS 검사"),
+    (r"packet captures?", "패킷 캡처"),
+    (r"collect(?:ing)? (?:the )?logs", "로그를 수집하다"),
+    (r"drop off (?:the|this|our) call", "통화에서 나가다"),
+    (r"drop off (?:the|this|our) meeting", "회의에서 나가다"),
+    (r"reconnect(?:s|ed|ing)?", "다시 연결하다"),
 )
+
+_NETWORK_DIAGNOSTICS = re.compile(
+    r"\b(?:application segments?|(?:SSL(?:/TLS)?|TLS) inspection|"
+    r"packet captures?|Zscaler|Wireshark|ZIA|ZPA)\b", re.IGNORECASE,
+)
+
+_INSPECTION_SWITCH = re.compile(
+    r"\b((?:ZIA?|ZPA?|SSL(?:/TLS)?|TLS) inspection) (on|off)"
+    r"(?=\s*(?:[,;.!?]|\b(?:and|or|but|then)\b|$))",
+    re.IGNORECASE,
+)
+
+
+def _expand_inspection_switch_states(text):
+    return _INSPECTION_SWITCH.sub(
+        lambda match: f"{match[1]} " + (
+            "enabled" if match[2].casefold() == "on" else "disabled"
+        ),
+        text,
+    )
 
 
 def _hym_glossary_hint(text, source_lang):
@@ -904,6 +931,10 @@ def _hym_current_text_guidance(text, source_lang):
     """
     if source_lang != "en":
         return ""
+    if _NETWORK_DIAGNOSTICS.search(text):
+        return ("Keep product names and acronyms as written. For each test, keep "
+                "the feature and its enabled, disabled, or bypassed state together. "
+                "Keep test plans separate from measured results. ")
     if (re.search(r"\bappreciate your business\b", text, re.IGNORECASE)
             and re.search(r"\bit works both ways\b", text, re.IGNORECASE)):
         return ("In this customer conversation, express appreciation for the "
@@ -948,6 +979,15 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
         return "안녕히 계세요."
 
     fixed = korean
+    if (re.search(r"\bapplication segments?\b", english, re.IGNORECASE)
+            and not re.search(r"\bsections?\b", english, re.IGNORECASE)):
+        particles = {"을": "를", "은": "는", "이": "가", "과": "와", "으로": "로"}
+        fixed = re.sub(
+            r"(?:애플리케이션|어플리케이션|응용 프로그램)\s*섹션"
+            r"(?:(을|은|이|과|으로)(?![가-힣]))?",
+            lambda match: "애플리케이션 세그먼트" + particles.get(match[1], ""),
+            fixed,
+        )
     if re.search(r"\blooking forward to presenting (?:it|this)\b", english, re.IGNORECASE):
         fixed = re.sub(r"제시할 날짜를 기대하고 있어요", "발표할 생각에 기대돼요", fixed, count=1)
     if (re.search(r"\b(?:have|enjoy) a (?:good|great|nice|lovely) weekend\b", english, re.IGNORECASE)
@@ -1133,6 +1173,7 @@ class HyMT2Backend:
         if not self.process or self.process.poll() is not None:
             raise RuntimeError("Hy-MT2 로컬 번역 서버가 종료되었습니다.")
         lang = "English" if source_lang == "en" else "Japanese"
+        translation_input = _expand_inspection_switch_states(text) if source_lang == "en" else text
         # The small CPU model can translate the *previous* phrase instead of
         # the current phrase when both are supplied. Fail closed on context:
         # send only the current recognized utterance, never dialogue history.
@@ -1150,7 +1191,7 @@ class HyMT2Backend:
             "Do not guess or add missing speech. "
             + guidance +
             "Output only the Korean translation without explanation.\n\n" +
-            text[:5000]
+            translation_input[:5000]
         )
         payload = {
             "messages": [{"role": "user", "content": prompt}],
@@ -1352,6 +1393,19 @@ def choose_asr_beam_size(quality_mode, pending_chunks):
         return 3
     return 5
 
+
+def _join_recognized_segments(segments, source_lang, quality_mode):
+    recognized = [segment for segment in segments if segment.text.strip()]
+    text = " ".join(segment.text.strip() for segment in recognized)
+    # Whisper can produce a bare "you" over a pause. Only suppress it when
+    # it is the entire low-confidence result, so real replies and continuations
+    # with confidently recognized speech still reach the sentence buffer.
+    if quality_mode and source_lang == "en" and text == "you":
+        segment = recognized[0]
+        if (getattr(segment, "no_speech_prob", 0) >= 0.5
+                and getattr(segment, "avg_logprob", 0) <= -0.75):
+            return ""
+    return text
 
 
 def should_finalize_audio(sample_count, silence_count, rate, interval_seconds,
@@ -1580,7 +1634,8 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
                 condition_on_previous_text=False,
                 vad_filter=False,
             )
-            raw_original = " ".join(s.text.strip() for s in segments).strip()
+            source_lang = metadata.language if language == "auto" else language
+            raw_original = _join_recognized_segments(segments, source_lang, quality_mode)
             if stop_event.is_set():
                 break
             if not raw_original:
@@ -1590,7 +1645,6 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
                 )
                 continue
             asr_seconds = time.monotonic() - before
-            source_lang = metadata.language if language == "auto" else language
             cleaned_original = (
                 collapse_asr_restarts(raw_original)
                 if quality_mode and source_lang == "en" else raw_original

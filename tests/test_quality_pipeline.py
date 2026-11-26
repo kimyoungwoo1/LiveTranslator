@@ -3,6 +3,7 @@ import importlib.util
 from pathlib import Path
 import re
 import sys
+from types import SimpleNamespace
 import unittest
 from unittest import mock
 
@@ -25,6 +26,17 @@ class QualityTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.pipeline = load_pipeline()
+
+    def test_bare_you_only_filtered_as_a_low_confidence_standalone_result(self):
+        join = self.pipeline._join_recognized_segments
+        noise = SimpleNamespace(text=" you", no_speech_prob=0.55, avg_logprob=-0.9)
+        speech = SimpleNamespace(text=" you", no_speech_prob=0.12, avg_logprob=-0.25)
+        sentence = SimpleNamespace(text="Can you check it?", no_speech_prob=0.55,
+                                   avg_logprob=-0.9)
+        self.assertEqual(join(iter([noise]), "en", True), "")
+        self.assertEqual(join(iter([speech]), "en", True), "you")
+        self.assertEqual(join(iter([noise]), "en", False), "you")
+        self.assertEqual(join(iter([sentence]), "en", True), "Can you check it?")
 
     def test_ellipsis_is_incomplete_and_next_chunk_completes_order(self):
         buf = self.pipeline.SentenceBuffer(3)
