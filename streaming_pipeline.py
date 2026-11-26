@@ -910,6 +910,27 @@ def _expand_inspection_switch_states(text):
     )
 
 
+def _clarify_english_meaning(text):
+    # Surface a subset of a known group explicitly. The model can otherwise
+    # drop "some" from noun phrases embedded in a longer clause.
+    text = re.sub(
+        r"\bsome (?:of the )?(team members|staff members|employees|participants|users)\b"
+        r"(?!['’])",
+        lambda match: ("A" if match[0][0].isupper() else "a")
+        + " portion of the " + match[1],
+        text, flags=re.IGNORECASE,
+    )
+    # Resolve "before that" following one clearly named event in this chunk.
+    return re.sub(
+        r"(\b(?:run|hold|conduct) (?:a |an |the |some )?"
+        r"(workshops?|meetings?|interviews?|training sessions?)"
+        r"(?: with (?:the )?(?:employees|staff|team|participants|customers))?"
+        r"[.]\s+)before that\b",
+        lambda match: f"{match[1]}Before the {match[2]}",
+        text, flags=re.IGNORECASE,
+    )
+
+
 def _hym_glossary_hint(text, source_lang):
     """Return a small glossary for terms found in the current English text."""
     if source_lang != "en":
@@ -926,6 +947,24 @@ def _hym_glossary_hint(text, source_lang):
         return ""
     return ("Terminology (adapt grammar to the source; preserve who does what): "
             + "; ".join(matches) + ". ")
+
+
+def _hym_meaning_guidance(text):
+    """Guide the model on cues that are present in this English passage."""
+    hints = []
+    if re.search(r"\b(?:may|might|could|would|maybe|perhaps|probably|risk|"
+                 r"concern|(?:un)?likely|uncertain|not sure)\b", text, re.IGNORECASE):
+        hints.append("Keep possibilities, proposals and risks tentative. "
+                     "Express a stated risk as 우려 or 위험.")
+    if re.search(r"\b(?:some|many|most|few|all|every|only|at least|at most)\b",
+                 text, re.IGNORECASE):
+        hints.append("Keep the exact scope of words like some, many, all and only.")
+    if re.search(r"\bmanagement team\b", text, re.IGNORECASE) and re.search(
+        r"\b(?:charter|staff|employees|workplace)\b", text, re.IGNORECASE
+    ):
+        hints.append("If management team means the people leading the workplace, "
+                     "use 경영진.")
+    return " ".join(hints) + " " if hints else ""
 
 
 def _hym_current_text_guidance(text, source_lang):
@@ -1189,21 +1228,30 @@ class HyMT2Backend:
         if not self.process or self.process.poll() is not None:
             raise RuntimeError("Hy-MT2 로컬 번역 서버가 종료되었습니다.")
         lang = "English" if source_lang == "en" else "Japanese"
-        translation_input = _expand_inspection_switch_states(text) if source_lang == "en" else text
+        translation_input = text
+        if source_lang == "en":
+            translation_input = _clarify_english_meaning(_expand_inspection_switch_states(text))
         # The small CPU model can translate the *previous* phrase instead of
         # the current phrase when both are supplied. Fail closed on context:
         # send only the current recognized utterance, never dialogue history.
         # Style guidance is selected solely from CURRENT text and contains
         # no previous dialogue or separate passage to translate.
-        guidance = (_hym_current_text_guidance(text, source_lang)
+        meaning = _hym_meaning_guidance(text) if source_lang == "en" else ""
+        references = (
+            "Name the referent of a pronoun or 'before that' only if it is clear "
+            "in this input. Otherwise leave it implicit in natural Korean. "
+            if source_lang == "en" else
+            "Resolve references using nearby sentences in the input and omit unnecessary Korean pronouns. "
+        )
+        guidance = (meaning + _hym_current_text_guidance(text, source_lang)
                     + _hym_glossary_hint(text, source_lang))
         prompt = (
             f"Translate the following {lang} text into natural, polite Korean "
             "as spoken in a real conversation. Interpret common conversational "
             "idioms by their meaning. Preserve negation, questions, numbers, "
             "amounts and proper names. Preserve who will do each action and what "
-            "they will send or receive. Resolve references using nearby sentences "
-            "in the input and omit unnecessary Korean pronouns. "
+            "they will send or receive. "
+            + references +
             "Do not guess or add missing speech. "
             + guidance +
             "Output only the Korean translation without explanation.\n\n" +
