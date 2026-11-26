@@ -1,15 +1,15 @@
 {
-  "version": "0.6.65",
+  "version": "0.6.66",
   "min_bootstrap": "0.6.0",
-  "notes": "Reduce English recognition errors in quality priority by relying on overlapping audio without feeding back already decoded words. Compare the two policies with the offline replay benchmark.",
+  "notes": "Join English questions with their recognized complements, recover an open request from an overlapping restart, and deduplicate repeated words inside pending utterances.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.65/app_core.py",
+      "path": "updates/v0.6.66/app_core.py",
       "git_sha1": "19b225bcd91e86f5d9176a5627c3b7f66a372719"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.65/streaming_pipeline.py",
-      "git_sha1": "e3ec0c10b21ea5772bb9bbe8e2baef944addaf88"
+      "path": "updates/v0.6.66/streaming_pipeline.py",
+      "git_sha1": "c893bfe1f2bb08dfa58aca3eb083871839a96d91"
     }
   }
 }

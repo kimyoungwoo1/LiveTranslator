@@ -64,10 +64,24 @@ class SentenceBuffer:
         r"from|our|your|their|after|before))\s*[.!?]?\s*$",
         re.IGNORECASE,
     )
+    _AS_COMPLEMENT_QUESTION = re.compile(
+        r"\b(?:see|view|regard|describe|treat|present|recognize|recognise) "
+        r"(?:it|them|this|that)\?$", re.IGNORECASE,
+    )
 
     @classmethod
     def _likely_unfinished(cls, fragment, language):
-        return language == "en" and bool(cls._OPEN_END.search(fragment))
+        if language != "en":
+            return False
+        if cls._OPEN_END.search(fragment):
+            return True
+        # A question about how something is viewed can end before its "as"
+        # complement even when the capture paused, e.g. "Will they just see it?"
+        view = cls._AS_COMPLEMENT_QUESTION.search(fragment)
+        return bool(view and re.search(
+            r"\b(?:will|would)\b[^.!?]*\b(?:just|only) $",
+            fragment[:view.start()], re.IGNORECASE,
+        ))
 
     @staticmethod
     def _likely_continuation(fragment):
@@ -82,6 +96,26 @@ class SentenceBuffer:
             r"^(?:0?[1-9]|1[0-2])(?:[:.][0-5]\d)?\s*(?:[ap]\.?m\.?\b|o['’]clock\b)",
             text, re.IGNORECASE,
         ))
+
+    @classmethod
+    def _as_question_complement(cls, previous, incoming):
+        return bool(cls._AS_COMPLEMENT_QUESTION.search(previous) and re.match(
+            r"^as (?!a (?:result|rule|matter)\b)"
+            r"(?:something|someone|a|an|the|our|your|their|my|his|her)\b",
+            incoming, re.IGNORECASE,
+        ))
+
+    @staticmethod
+    def _single_word_overlap(previous, incoming):
+        """Remove a repeated word inside a still-pending English utterance."""
+        tail = re.search(r"\b([a-z]{5,})[.,]?$", previous, re.IGNORECASE)
+        head = re.match(r"([a-z]{5,})(,\s*|\s+)(?=\w)", incoming)
+        if tail and head:
+            old, new = tail[1].casefold(), head[1]
+            if old == new or (head[2].startswith(",") and old == new + "s"):
+                punctuation = "," if head[2].startswith(",") else ""
+                return previous[:tail.end(1)] + punctuation, incoming[head.end():]
+        return previous, incoming
 
     @staticmethod
     def _has_english_continuation(previous, incoming):
@@ -208,6 +242,20 @@ class SentenceBuffer:
         restart = None
         if language == self.language == "en" and self.awaiting_continuation:
             restart = self._clipped_restart(self.text, fragment)
+            request = re.search(
+                r"\b(?:can|could|would) you ([a-z]+(?: [a-z]+)* (?:a|an|the|to))[.?]?$",
+                self.text, re.IGNORECASE,
+            )
+            if request and re.fullmatch(r"[^,.!?]+,", fragment):
+                # An overlapping decode sometimes restarts the request as
+                # "when you …," without a main clause. Keep the original question.
+                repeated = re.match(
+                    r"^when you (" + re.escape(request[1]) + r")\s+(?=\w)",
+                    fragment, re.IGNORECASE,
+                )
+                if repeated:
+                    restart = request.start(1)
+                    fragment = fragment[repeated.start(1):-1] + "?"
             # A lone discourse marker can reappear at the start of the next
             # recognition. Keep the longer recognition instead of both.
             stub = self.text.rstrip(".").casefold()
@@ -217,7 +265,7 @@ class SentenceBuffer:
                 restart = 0
             explicit_continuation = explicit_continuation or self._has_english_continuation(
                 self.text, fragment,
-            )
+            ) or self._as_question_complement(self.text, fragment)
         if restart is not None:
             # Use the words the next chunk actually recognized, preserving
             # the unrepeated prefix and its original sentence capitalization.
@@ -267,6 +315,10 @@ class SentenceBuffer:
                 elif (self.text.casefold().endswith("do you have a minute?")
                       and self._has_english_continuation(self.text, fragment)):
                     self.text = self.text[:-1]
+                elif self._as_question_complement(self.text, fragment):
+                    self.text = self.text[:-1]
+                    fragment = fragment[0].lower() + fragment[1:]
+                    fragment = re.sub(r"\.(?=\s+[A-Z]|$)", "?", fragment, count=1)
                 self.text = re.sub(r"\.\s*$", "", self.text)
                 if self.text.casefold() == "actually":
                     self.text += ","
@@ -274,6 +326,8 @@ class SentenceBuffer:
                 self.text, fragment = self._carry_incomplete_word(
                     self.text, fragment, language
                 )
+            if language == "en" and (continuing or not self.TERMINAL.search(self.text)):
+                self.text, fragment = self._single_word_overlap(self.text, fragment)
             if self.text:
                 joiner = "" if language in ("ja", "zh") else " "
                 self.text += joiner
