@@ -136,6 +136,28 @@ class QualityTests(unittest.TestCase):
             [("The risk is that we all work in the same way, think the same and see the world the same.", "en")],
         )
 
+    def test_risk_list_can_continue_in_a_separate_capture(self):
+        buf = self.pipeline.SentenceBuffer(5)
+        self.assertEqual(buf.add("The risk is that we all work in the same way.", "en", 0), [])
+        self.assertEqual(
+            buf.add("Think the same and see the world the same.", "en", 6),
+            [("The risk is that we all work in the same way, think the same and see the world the same.", "en")],
+        )
+        self.assertEqual(buf.add("The risk is that we all work in the same way.", "en", 12), [])
+        self.assertEqual(
+            buf.add("yes, I agree.", "en", 18),
+            [("The risk is that we all work in the same way.", "en"), ("yes, I agree.", "en")],
+        )
+
+    def test_innovation_continues_previous_clause_before_a_new_speaker_agrees(self):
+        buf = self.pipeline.SentenceBuffer(5)
+        self.assertEqual(buf.add("This makes it hard to be creative and...", "en", 0), [])
+        self.assertEqual(
+            buf.add("And to innovate I completely agree, Mina.", "en", 6),
+            [("This makes it hard to be creative and to innovate.", "en"),
+             ("I completely agree, Mina.", "en")],
+        )
+
     def test_clipped_address_is_replaced_by_the_recognized_web_address(self):
         buf = self.pipeline.SentenceBuffer(5)
         self.assertEqual(buf.add("For more information, visit W...", "en", 0), [])

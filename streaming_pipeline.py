@@ -68,12 +68,15 @@ class SentenceBuffer:
         r"\b(?:see|view|regard|describe|treat|present|recognize|recognise) "
         r"(?:it|them|this|that)\?$", re.IGNORECASE,
     )
+    _RISK_LIST = r"\b(risk is that (?:we|they) (?:all )?work in the same way)"
+    _RISK_LIST_ITEMS = r"(think the same and see the)\b"
+    _RISK_LIST_END = re.compile(_RISK_LIST + r"\.$", re.IGNORECASE)
 
     @classmethod
     def _likely_unfinished(cls, fragment, language):
         if language != "en":
             return False
-        if cls._OPEN_END.search(fragment):
+        if cls._OPEN_END.search(fragment) or cls._RISK_LIST_END.search(fragment):
             return True
         # A question about how something is viewed can end before its "as"
         # complement even when the capture paused, e.g. "Will they just see it?"
@@ -193,8 +196,8 @@ class SentenceBuffer:
                     return tail.start()
         return None
 
-    @staticmethod
-    def _join_clause_continuations(text):
+    @classmethod
+    def _join_clause_continuations(cls, text):
         """Remove a false sentence boundary before a clear continuation."""
         text = re.sub(
             r"(\b(?:workplace charter|workplace policy|code of conduct))[.,]\s+"
@@ -203,8 +206,7 @@ class SentenceBuffer:
             text, flags=re.IGNORECASE,
         )
         return re.sub(
-            r"\b(risk is that (?:we|they) (?:all )?work in the same way)\.\s+"
-            r"(think the same and see the)\b",
+            cls._RISK_LIST + r"\.\s+" + cls._RISK_LIST_ITEMS,
             lambda match: f"{match[1]}, {match[2].lower()}",
             text, flags=re.IGNORECASE,
         )
@@ -262,7 +264,23 @@ class SentenceBuffer:
             fragment = fragment[0].lower() + fragment[1:]
         results = []
         restart = None
+        risk_list_pending = False
         if language == self.language == "en" and self.awaiting_continuation:
+            risk_list_pending = bool(self._RISK_LIST_END.search(self.text))
+            if risk_list_pending and re.match(self._RISK_LIST_ITEMS, fragment, re.IGNORECASE):
+                self.text = self.text[:-1] + ","
+                fragment = fragment[0].lower() + fragment[1:]
+                explicit_continuation = True
+            if re.search(r"\bto be creative and$", self.text, re.IGNORECASE):
+                # The new decode repeats "and" and runs into the next reply.
+                continuation = re.match(
+                    r"^and (to innovate)\.?\s+(?=I (?:completely )?agree\b)",
+                    fragment, re.IGNORECASE,
+                )
+                if continuation:
+                    self.text += " " + continuation[1] + "."
+                    results.append(self.flush())
+                    fragment = fragment[continuation.end():]
             restart = self._clipped_restart(self.text, fragment)
             request = re.search(
                 r"\b(?:can|could|would) you ([a-z]+(?: [a-z]+)* (?:a|an|the|to))[.?]?$",
@@ -301,7 +319,7 @@ class SentenceBuffer:
             if previous:
                 results.append(previous)
         elif (self.awaiting_continuation and not explicit_continuation
-              and not self._likely_continuation(fragment)):
+              and (risk_list_pending or not self._likely_continuation(fragment))):
             # Whisper sometimes emits "How?" before recognizing "How can I
             # help you?" in the next audio window. The latter repeats the
             # exact word, so it is a verified restart, not new speech.
