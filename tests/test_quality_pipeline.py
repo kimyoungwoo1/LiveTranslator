@@ -37,6 +37,28 @@ class QualityTests(unittest.TestCase):
             "Look for a successful speaker for the seminar?", "en", 6
         ), [("Can you look for a successful speaker for the seminar?", "en")])
 
+    def test_cut_successful_is_not_translated_as_a_separate_word(self):
+        buf = self.pipeline.SentenceBuffer(5)
+        self.assertEqual(buf.add("Okay. Lee, can you look for a sex...", "en", 0),
+                         [("Okay.", "en")])
+        self.assertEqual(
+            buf.add("Look for a successful speaker for the seminar.", "en", 6),
+            [("Lee, can you look for a successful speaker for the seminar.", "en")],
+        )
+        self.assertIsNone(buf.flush())
+        self.assertEqual(
+            buf.add("Could you look for a sex therapist?", "en", 12),
+            [("Could you look for a sex therapist?", "en")],
+        )
+
+    def test_partial_overlap_only_drops_the_repeated_list_suffix(self):
+        strip = self.pipeline.strip_transcript_overlap
+        self.assertEqual(strip("Different nationalities, backgrounds.",
+                               "Grounds, religions, ages.", "en"), "religions, ages.")
+        self.assertEqual(strip("This is about our legal background.",
+                               "Grounds, reasons and evidence.", "en"),
+                         "Grounds, reasons and evidence.")
+
     def test_stop_delivers_buffered_phrases_and_the_short_final_audio_block(self):
         pipeline = self.pipeline
         stop = threading.Event()

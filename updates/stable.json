@@ -1,15 +1,15 @@
 {
-  "version": "0.6.63",
+  "version": "0.6.64",
   "min_bootstrap": "0.6.0",
-  "notes": "Preserve uncertainty and scope in English meeting translations, and clarify references to explicitly named events.",
+  "notes": "Reassemble clipped spoken requests, remove a duplicated demographic list fragment and preserve the subject of a split risk statement.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.63/app_core.py",
+      "path": "updates/v0.6.64/app_core.py",
       "git_sha1": "30a6a8add3d987121a9bdcfa95a1c25b9ef8299c"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.63/streaming_pipeline.py",
-      "git_sha1": "1b36275477b9cec8bb166d7c62c11dc34a40d91f"
+      "path": "updates/v0.6.64/streaming_pipeline.py",
+      "git_sha1": "3ba07c6cf83674af81883ae9674feddaf356edc1"
     }
   }
 }
