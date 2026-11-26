@@ -1522,7 +1522,14 @@ class App:
         model_name, capture_seconds = self._recognition_options()
         if hasattr(self, "profile_combo"):
             self.profile_combo.config(state="disabled")
-        self.worker = threading.Thread(target=self.capture_and_translate, args=(selected, self.language.get(), model_name, capture_seconds, engine, api_key), daemon=True)
+        profile = getattr(self, "asr_profile", None)
+        quality_priority = profile is not None and profile.get() == "품질 우선"
+        self.worker = threading.Thread(
+            target=self.capture_and_translate,
+            args=(selected, self.language.get(), model_name, capture_seconds, engine, api_key),
+            kwargs={"quality_priority": quality_priority},
+            daemon=True,
+        )
         self.worker.start()
         self._set_setup_collapsed(True)
 
@@ -1534,7 +1541,8 @@ class App:
         self.stop_btn.config(state="disabled")
         self.status.set("음성 수집을 중지하고 남은 음성과 번역을 처리하는 중...")
 
-    def capture_and_translate(self, selected, language, model_name, seconds, engine, api_key):
+    def capture_and_translate(self, selected, language, model_name, seconds, engine, api_key,
+                              *, quality_priority=False):
         hy_backend = None
         diagnostics = None
         try:
@@ -1588,6 +1596,7 @@ class App:
                 model=self._cached_model,
                 translate=translate_cached,
                 quality_mode=(engine in ("argos", "hymt")),
+                quality_priority=quality_priority,
                 emit_status=lambda status: self.events.put(
                     ("error" if status.startswith("오디오 캡처 오류:") else "status", status)
                 ),

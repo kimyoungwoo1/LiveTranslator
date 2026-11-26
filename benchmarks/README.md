@@ -47,6 +47,9 @@ models may be downloaded. Supply a plain English reference and an output path:
 
     python benchmarks/compare_recognition_profiles.py --audio recording.wav --reference reference.txt --output comparison.json
 
+Add `--compare-prompt` to use small/5 seconds for both runs and compare the
+effect of supplying the previous recognized text as a prompt.
+
 WAV input must be mono 16-bit PCM at 16000 Hz. Other formats use PyAV through
 faster-whisper. Optional `--model-root` uses existing `base` and `small` folders.
 Optional `--start-marker` and `--end-marker` exclude a recording's intro/outro

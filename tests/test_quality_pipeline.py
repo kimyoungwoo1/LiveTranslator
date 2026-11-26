@@ -711,6 +711,15 @@ class QualityTests(unittest.TestCase):
         self.assertIn("recent_transcript[-140:]", text)
         self.assertIn('recent_transcript = ""', text)
 
+    def test_english_quality_priority_uses_audio_overlap_without_reprompting(self):
+        prompt = self.pipeline.recognition_prompt
+        previous = "A prior utterance."
+        self.assertIsNone(prompt(previous, "en", True, True))
+        self.assertEqual(prompt(previous, "en", True, False), previous)
+        self.assertEqual(prompt(previous, "ja", True, True), previous)
+        self.assertIsNone(prompt(previous, "auto", True, True))
+        self.assertIsNone(prompt(previous, "en", False, True))
+
     def test_translation_runs_in_separate_worker_not_asr_loop(self):
         import ast
         root = Path(__file__).resolve().parent.parent
