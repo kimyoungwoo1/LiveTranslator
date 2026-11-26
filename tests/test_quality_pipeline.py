@@ -59,6 +59,56 @@ class QualityTests(unittest.TestCase):
                                "Grounds, reasons and evidence.", "en"),
                          "Grounds, reasons and evidence.")
 
+    def test_cut_question_keeps_its_complement_and_following_statement(self):
+        buf = self.pipeline.SentenceBuffer(5)
+        self.assertEqual(buf.add("Will they see it?", "en", 0, cut_mid_speech=True), [])
+        self.assertEqual(
+            buf.add("As a real commitment. Maybe they'll ask for details.", "en", 6),
+            [("Will they see it as a real commitment? Maybe they'll ask for details.", "en")],
+        )
+        self.assertEqual(buf.add("Will they see it?", "en", 12, cut_mid_speech=True), [])
+        self.assertEqual(
+            buf.add("As a result, we postponed the demo.", "en", 18),
+            [("Will they see it?", "en"), ("As a result, we postponed the demo.", "en")],
+        )
+        self.assertEqual(buf.add("Will they only see it?", "en", 24), [])
+        self.assertEqual(
+            buf.add("As a routine announcement.", "en", 30),
+            [("Will they only see it as a routine announcement?", "en")],
+        )
+        self.assertEqual(buf.add("Can you see it?", "en", 36), [("Can you see it?", "en")])
+
+    def test_restarted_request_keeps_its_original_question(self):
+        buf = self.pipeline.SentenceBuffer(5)
+        self.assertEqual(buf.add("Mina, could you search for a...", "en", 0), [])
+        self.assertEqual(
+            buf.add("When you search for a suitable venue,", "en", 6),
+            [("Mina, could you search for a suitable venue?", "en")],
+        )
+        self.assertEqual(buf.add("Mina, could you search for a...", "en", 12), [])
+        self.assertEqual(
+            buf.add("When you search for a venue, ask about parking.", "en", 18),
+            [("Mina, could you search for a", "en"),
+             ("When you search for a venue, ask about parking.", "en")],
+        )
+
+    def test_pending_overlap_preserves_a_list_and_drops_only_the_repeated_word(self):
+        buf = self.pipeline.SentenceBuffer(5)
+        self.assertEqual(buf.add("We discussed milestones.", "en", 0, cut_mid_speech=True), [])
+        self.assertEqual(
+            buf.add("milestone, priorities and timelines.", "en", 6),
+            [("We discussed milestones, priorities and timelines.", "en")],
+        )
+        self.assertEqual(buf.add("They want to support.", "en", 12, cut_mid_speech=True), [])
+        self.assertEqual(
+            buf.add("support and train their staff.", "en", 18),
+            [("They want to support and train their staff.", "en")],
+        )
+        self.assertEqual(buf.add("We all agreed.", "en", 24),
+                         [("We all agreed.", "en")])
+        self.assertEqual(buf.add("Agreed. Let's begin.", "en", 30),
+                         [("Agreed. Let's begin.", "en")])
+
     def test_stop_delivers_buffered_phrases_and_the_short_final_audio_block(self):
         pipeline = self.pipeline
         stop = threading.Event()
