@@ -138,14 +138,15 @@ class SentenceBuffer:
 
     @staticmethod
     def _clipped_restart(previous, incoming):
-        """Find two repeated words followed by a visibly completed word."""
-        tail = re.search(r"\b([a-z]+ [a-z]+) ([a-z]{4,})[.]?$",
-                         previous, re.IGNORECASE)
-        head = re.match(r"([a-z]+ [a-z]+) ([a-z]+)\b", incoming, re.IGNORECASE)
-        if tail and head and tail[1].casefold() == head[1].casefold():
-            clipped, complete = tail[2].casefold(), head[2].casefold()
-            if 2 <= len(complete) - len(clipped) <= 4 and complete.startswith(clipped):
-                return tail.start()
+        """Find a repeated prefix followed by a visibly completed word."""
+        for words in (3, 2):
+            prefix = rf"((?:[a-z]+ ){{{words}}})"
+            tail = re.search(r"\b" + prefix + r"([a-z]{4,})[.?]?$", previous, re.IGNORECASE)
+            head = re.match(prefix + r"([a-z]+)\b", incoming, re.IGNORECASE)
+            if tail and head and tail[1].casefold() == head[1].casefold():
+                clipped, complete = tail[2].casefold(), head[2].casefold()
+                if 2 <= len(complete) - len(clipped) <= 4 and complete.startswith(clipped):
+                    return tail.start()
         return None
 
     def _release_completed_prefix(self, now):
@@ -306,9 +307,9 @@ class SentenceBuffer:
                     self.count = 1
                     self.last_fragment = pending_tail
         if (cut_mid_speech and language == "en" and self.count == 1
-                and not self.awaiting_continuation and self.text.endswith(".")
+                and not self.awaiting_continuation and self.text.endswith((".", "?"))
                 and len(self.text) < self.max_chars):
-            # A forced cut through speech can insert a false period. Release
+            # A forced cut through speech can insert false punctuation. Release
             # earlier sentences and give only the last one a chance to join
             # a lowercase continuation in the next audio block.
             complete = self._release_completed_prefix(now)
@@ -882,6 +883,10 @@ _HYM_GLOSSARY = (
     (r"drop off (?:the|this|our) call", "통화에서 나가다"),
     (r"drop off (?:the|this|our) meeting", "회의에서 나가다"),
     (r"reconnect(?:s|ed|ing)?", "다시 연결하다"),
+    (r"British Council", "영국문화원"),
+    (r"workplace charter", "직장 내 공동 행동 원칙"),
+    (r"team[ -]building sessions?", "팀워크 강화 활동"),
+    (r"diversity and inclusion", "다양성과 포용성"),
 )
 
 _NETWORK_DIAGNOSTICS = re.compile(
@@ -979,6 +984,17 @@ def _repair_clear_korean_idiom_mistranslations(source, korean, source_lang):
         return "안녕히 계세요."
 
     fixed = korean
+    if re.search(r"\bBritish Council\b", english, re.IGNORECASE):
+        fixed = re.sub(r"(?:영국 문화재단|브리티시 (?:커뮤니티|카운슬))",
+                       "영국문화원", fixed, count=1)
+    if (re.search(r"\bworkplace charter\b", english, re.IGNORECASE)
+            and not re.search(r"\b(?:rules?|regulations?|handbooks?)\b", english, re.IGNORECASE)):
+        particles = {"를": "을", "는": "은", "가": "이", "와": "과", "로": "으로"}
+        fixed = re.sub(
+            r"직장\s*(?:내\s*)?규정서(?:(를|는|가|와|로)(?![가-힣]))?",
+            lambda match: "직장 내 공동 행동 원칙" + particles.get(match[1], ""),
+            fixed, count=1,
+        )
     if (re.search(r"\bapplication segments?\b", english, re.IGNORECASE)
             and not re.search(r"\bsections?\b", english, re.IGNORECASE)):
         particles = {"을": "를", "은": "는", "이": "가", "과": "와", "으로": "로"}
@@ -1432,12 +1448,26 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
     translation_pending = queue.Queue(maxsize=40)
     translated_dropped = [0]
     capture_done = threading.Event()
+    recognition_done = threading.Event()
+    abort = threading.Event()
     skipped = [0]
     assembler = SentenceBuffer(interval_seconds) if quality_mode else None
     seen_skipped = 0
     recent_transcript = ""
     last_recognized_audio_text = ""
     previous_lang = None
+
+    def queue_audio(block, rate, cut_mid_speech):
+        item = (time.monotonic(), block, rate, cut_mid_speech)
+        try:
+            pending.put_nowait(item)
+        except queue.Full:
+            try:
+                pending.get_nowait()
+                skipped[0] += 1
+            except queue.Empty:
+                pass
+            pending.put_nowait(item)
 
     def capture():
         pa = None
@@ -1489,19 +1519,11 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
                 parts = []
                 count = 0
                 quiet_samples = 0
-                item = (time.monotonic(), block, rate, cut_mid_speech)
-                try:
-                    pending.put_nowait(item)
-                except queue.Full:
-                    try:
-                        pending.get_nowait()
-                        skipped[0] += 1
-                    except queue.Empty:
-                        pass
-                    try:
-                        pending.put_nowait(item)
-                    except queue.Full:
-                        skipped[0] += 1
+                queue_audio(block, rate, cut_mid_speech)
+            if parts and not abort.is_set():
+                # The last few seconds may be shorter than a live audio block.
+                block, _ = add_audio_context(np.concatenate(parts), overlap_tail, rate, quality_mode)
+                queue_audio(block, rate, False)
         except Exception as exc:
             emit_status(f"오디오 캡처 오류: {exc}")
         finally:
@@ -1511,13 +1533,15 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
                     stream.close()
                 except Exception:
                     pass
-            if pa is not None:
-                pa.terminate()
-            capture_done.set()
+            try:
+                if pa is not None:
+                    pa.terminate()
+            finally:
+                capture_done.set()
 
     def deliver(text, source_lang, captured_at, asr_seconds):
-        """Queue finished sentences without blocking speech recognition."""
-        if stop_event.is_set() or not text.strip():
+        """Queue one finished sentence without blocking speech recognition."""
+        if abort.is_set() or not text.strip():
             return
         task = (text, source_lang, captured_at, asr_seconds)
         try:
@@ -1538,19 +1562,19 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
 
     def translation_worker():
         try:
-            while not stop_event.is_set():
+            while not abort.is_set():
                 try:
                     text, source_lang, captured_at, asr_seconds = translation_pending.get(
                         timeout=0.2
                     )
                 except queue.Empty:
+                    if recognition_done.is_set() and translation_pending.empty():
+                        break
                     continue
-                if stop_event.is_set():
-                    break
                 started = time.monotonic()
                 result = text if source_lang == "ko" else translate(text, source_lang)
                 duration = time.monotonic() - started
-                if stop_event.is_set():
+                if abort.is_set():
                     break
                 emit_result(text, result)
                 lag = time.monotonic() - captured_at
@@ -1567,6 +1591,7 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
                 emit_error(f"번역 오류: {exc}")
             else:
                 emit_status(f"번역 오류: {exc}")
+            abort.set()
             stop_event.set()
 
     translation_thread = threading.Thread(
@@ -1576,13 +1601,21 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
 
     thread = threading.Thread(target=capture, name="LiveTranslatorCapture", daemon=True)
     thread.start()
+    stop_wait_started = None
     try:
-        while not stop_event.is_set():
+        while not abort.is_set():
             try:
                 captured_at, samples, rate, cut_mid_speech = pending.get(timeout=0.2)
             except queue.Empty:
-                if capture_done.is_set():
+                if capture_done.is_set() and pending.empty():
                     break
+                if stop_event.is_set():
+                    now = time.monotonic()
+                    if stop_wait_started is None:
+                        stop_wait_started = now
+                    elif now - stop_wait_started >= 2:
+                        emit_status("오디오 장치 응답이 늦어 이미 수집된 내용까지만 처리합니다.")
+                        break
                 continue
             # A skipped audio chunk is a discontinuity: don't join text across it.
             if skipped[0] != seen_skipped:
@@ -1636,7 +1669,7 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
             )
             source_lang = metadata.language if language == "auto" else language
             raw_original = _join_recognized_segments(segments, source_lang, quality_mode)
-            if stop_event.is_set():
+            if abort.is_set():
                 break
             if not raw_original:
                 emit_status(
@@ -1667,7 +1700,7 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
             emit_original(original)
             if assembler:
                 ready = assembler.add(original, source_lang, time.monotonic(),
-                                      cut_mid_speech=cut_mid_speech and pending.empty())
+                                      cut_mid_speech=cut_mid_speech)
                 if not ready:
                     emit_status(
                         f"문장 완성 대기 · 음성 인식 {asr_seconds:.1f}초 · "
@@ -1680,8 +1713,19 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
                         deliver(unit, assembled_language, captured_at, asr_seconds)
             else:
                 deliver(original, source_lang, captured_at, asr_seconds)
+        if assembler and not abort.is_set():
+            item = assembler.flush()
+            if item:
+                text, source_lang = item
+                units = _split_long_english_batch(text) if source_lang == "en" else [text]
+                for unit in units:
+                    deliver(unit, source_lang, time.monotonic(), 0)
+    except BaseException:
+        abort.set()
+        raise
     finally:
         stop_event.set()
+        recognition_done.set()
         thread.join(timeout=2)
-        translation_thread.join(timeout=2)
+        translation_thread.join(timeout=2 if abort.is_set() else None)
     return skipped[0], translated_dropped[0]

@@ -395,6 +395,15 @@ class HyMT2Tests(unittest.TestCase):
         text = "We ran SSL inspection on the test laptop."
         self.assertEqual(expand(text), text)
 
+    def test_workplace_charter_and_british_council_terms(self):
+        repair = self.mod._repair_clear_korean_idiom_mistranslations
+        self.assertEqual(repair("That's a British Council recording.",
+                                "영국 문화재단에서 제작한 녹음이에요.", "en"),
+                         "영국문화원에서 제작한 녹음이에요.")
+        self.assertEqual(repair("Let's write a workplace charter.",
+                                "직장 규정서를 작성합시다.", "en"),
+                         "직장 내 공동 행동 원칙을 작성합시다.")
+
     def test_business_hint_does_not_include_prior_speech_or_modify_source(self):
         backend = self.mod.HyMT2Backend("unused")
         backend.port = 14811

@@ -1532,7 +1532,7 @@ class App:
         self.stop_signal.set()
         self.set_live_indicator("stopping")
         self.stop_btn.config(state="disabled")
-        self.status.set("중지 요청됨. 진행 중인 AI 처리가 끝나면 종료됩니다.")
+        self.status.set("음성 수집을 중지하고 남은 음성과 번역을 처리하는 중...")
 
     def capture_and_translate(self, selected, language, model_name, seconds, engine, api_key):
         hy_backend = None
