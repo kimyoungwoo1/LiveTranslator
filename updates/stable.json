@@ -1,15 +1,15 @@
 {
-  "version": "0.6.64",
+  "version": "0.6.65",
   "min_bootstrap": "0.6.0",
-  "notes": "Reassemble clipped spoken requests, remove a duplicated demographic list fragment and preserve the subject of a split risk statement.",
+  "notes": "Reduce English recognition errors in quality priority by relying on overlapping audio without feeding back already decoded words. Compare the two policies with the offline replay benchmark.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.64/app_core.py",
-      "git_sha1": "30a6a8add3d987121a9bdcfa95a1c25b9ef8299c"
+      "path": "updates/v0.6.65/app_core.py",
+      "git_sha1": "19b225bcd91e86f5d9176a5627c3b7f66a372719"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.64/streaming_pipeline.py",
-      "git_sha1": "3ba07c6cf83674af81883ae9674feddaf356edc1"
+      "path": "updates/v0.6.65/streaming_pipeline.py",
+      "git_sha1": "e3ec0c10b21ea5772bb9bbe8e2baef944addaf88"
     }
   }
 }

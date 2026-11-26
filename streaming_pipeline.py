@@ -1508,9 +1508,17 @@ def should_finalize_audio(sample_count, silence_count, rate, interval_seconds,
             and (silence_count >= int(rate * 0.28)
                  or sample_count >= int(rate * maximum)))
 
+
+def recognition_prompt(recent_transcript, language, quality_mode, quality_priority):
+    """Keep quality-priority English decoding independent of prior decoded text."""
+    if not quality_mode or language == "auto" or (quality_priority and language == "en"):
+        return None
+    return recent_transcript[-140:] or None
+
+
 def run_stream(selected, interval_seconds, language, model, translate, emit_status,
                emit_original, emit_result, stop_event, quality_mode=False, emit_audio_level=None,
-               emit_error=None):
+               emit_error=None, *, quality_priority=False):
     pending = queue.Queue(maxsize=6 if quality_mode else 4)
     # Text translation must not stop Whisper from recognizing the next audio block.
     translation_pending = queue.Queue(maxsize=40)
@@ -1717,13 +1725,11 @@ def run_stream(selected, interval_seconds, language, model, translate, emit_stat
             before = time.monotonic()
             audio = resample_poly(samples, 16000, rate).astype(np.float32)
             emit_status(f"음성 인식 중 · 대기 {pending.qsize()}개")
-            # The last *recognized* phrase offers subject/vocabulary context
-            # across speech chunks; do not reuse it across skipped audio.
-            prompt = None
-            if quality_mode and recent_transcript and (
-                language != "auto" or previous_lang == language
-            ):
-                prompt = recent_transcript[-140:]
+            # English quality priority already has overlapping audio context.
+            # Repeating decoded words as a prompt can reinforce boundary errors.
+            prompt = recognition_prompt(
+                recent_transcript, language, quality_mode, quality_priority
+            )
             segments, metadata = model.transcribe(
                 audio,
                 language=None if language == "auto" else language,
