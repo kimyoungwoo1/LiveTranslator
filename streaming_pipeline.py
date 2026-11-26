@@ -139,6 +139,12 @@ class SentenceBuffer:
     @staticmethod
     def _clipped_restart(previous, incoming):
         """Find a repeated prefix followed by a visibly completed word."""
+        # A clipped /səkˈs.../ can be recognized as "sex". Keep the full
+        # word only when the next fragment repeats the request and recognizes it.
+        tail = re.search(r"\b(?:can|could|would) you (look for a sex)[.?]?$",
+                         previous, re.IGNORECASE)
+        if tail and re.match(r"look for a successful \w", incoming, re.IGNORECASE):
+            return tail.start(1)
         for words in (3, 2):
             prefix = rf"((?:[a-z]+ ){{{words}}})"
             tail = re.search(r"\b" + prefix + r"([a-z]{4,})[.?]?$", previous, re.IGNORECASE)
@@ -887,6 +893,7 @@ _HYM_GLOSSARY = (
     (r"workplace charter", "직장 내 공동 행동 원칙"),
     (r"team[ -]building sessions?", "팀워크 강화 활동"),
     (r"diversity and inclusion", "다양성과 포용성"),
+    (r"religions?,\s*ages", "종교와 나이"),
 )
 
 _NETWORK_DIAGNOSTICS = re.compile(
@@ -918,6 +925,13 @@ def _clarify_english_meaning(text):
         r"(?!['’])",
         lambda match: ("A" if match[0][0].isupper() else "a")
         + " portion of the " + match[1],
+        text, flags=re.IGNORECASE,
+    )
+    # Restore the shared subject of a list split by Whisper's punctuation.
+    text = re.sub(
+        r"\b(risk is that (?:we|they) (?:all )?work in the same way)\.\s+"
+        r"(think the same and see the world)\b",
+        lambda match: f"{match[1]}, {match[2].lower()}",
         text, flags=re.IGNORECASE,
     )
     # Resolve "before that" following one clearly named event in this chunk.
@@ -1385,6 +1399,12 @@ def strip_transcript_overlap(previous, current, language="en", max_words=16):
     current = current.strip()
     if not previous or not current or language not in ("en", "auto"):
         return current
+    # In a demographic list, the decoder can repeat just the last syllable
+    # of "backgrounds" at the audio boundary.
+    if re.search(r"\bnationalities,\s*(?:and )?backgrounds[.,]?\s*$",
+                 previous, re.IGNORECASE):
+        current = re.sub(r"^grounds,\s+(?=(?:religions?|ages)\b)",
+                         "", current, flags=re.IGNORECASE)
     prev_words = [(m.group().casefold(), m.start(), m.end())
                   for m in _OVERLAP_WORD.finditer(previous)]
     next_words = [(m.group().casefold(), m.start(), m.end())

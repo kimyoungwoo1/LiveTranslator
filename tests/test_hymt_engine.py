@@ -370,6 +370,15 @@ class HyMT2Tests(unittest.TestCase):
         self.assertEqual(hint("The device management team restarted the service."), "")
         self.assertEqual(hint("Please bring the report."), "")
 
+    def test_translation_input_keeps_the_risk_clause_as_a_statement(self):
+        clarify = self.mod._clarify_english_meaning
+        self.assertEqual(
+            clarify("The risk is that we all work in the same way. Think the same and see the world."),
+            "The risk is that we all work in the same way, think the same and see the world.",
+        )
+        instruction = "We all work in the same way. Think the same and see the world."
+        self.assertEqual(clarify(instruction), instruction)
+
     def test_translation_input_clarifies_only_grounded_groups_and_events(self):
         clarify = self.mod._clarify_english_meaning
         self.assertEqual(clarify("Some team members might need help."),
