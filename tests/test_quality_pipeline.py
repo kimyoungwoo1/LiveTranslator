@@ -109,6 +109,41 @@ class QualityTests(unittest.TestCase):
         self.assertEqual(buf.add("Agreed. Let's begin.", "en", 30),
                          [("Agreed. Let's begin.", "en")])
 
+    def test_explanation_stays_attached_to_the_policy_it_describes(self):
+        buf = self.pipeline.SentenceBuffer(5)
+        self.assertEqual(buf.add(
+            "We need a workplace policy. You know, one that supports fairness.",
+            "en", 0, cut_mid_speech=True,
+        ), [])
+        self.assertEqual(
+            buf.add("Yes, I agree.", "en", 6),
+            [("We need a workplace policy, one that supports fairness.", "en"),
+             ("Yes, I agree.", "en")],
+        )
+        self.assertEqual(
+            buf.add("We need a workplace policy. You know, that will take time.", "en", 12),
+            [("We need a workplace policy. You know, that will take time.", "en")],
+        )
+
+    def test_risk_list_stays_together_when_its_last_item_is_cut(self):
+        buf = self.pipeline.SentenceBuffer(5)
+        self.assertEqual(buf.add(
+            "The risk is that we all work in the same way. Think the same and see the",
+            "en", 0, cut_mid_speech=True,
+        ), [])
+        self.assertEqual(
+            buf.add("world the same.", "en", 6),
+            [("The risk is that we all work in the same way, think the same and see the world the same.", "en")],
+        )
+
+    def test_clipped_address_is_replaced_by_the_recognized_web_address(self):
+        buf = self.pipeline.SentenceBuffer(5)
+        self.assertEqual(buf.add("For more information, visit W...", "en", 0), [])
+        self.assertEqual(
+            buf.add("Visit www.example.org.", "en", 6),
+            [("For more information, visit www.example.org.", "en")],
+        )
+
     def test_stop_delivers_buffered_phrases_and_the_short_final_audio_block(self):
         pipeline = self.pipeline
         stop = threading.Event()

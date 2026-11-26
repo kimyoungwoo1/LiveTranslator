@@ -173,6 +173,10 @@ class SentenceBuffer:
     @staticmethod
     def _clipped_restart(previous, incoming):
         """Find a repeated prefix followed by a visibly completed word."""
+        link = re.search(r"\bvisit w{1,2}$", previous, re.IGNORECASE)
+        if link and re.match(r"visit www\.(?:[a-z0-9-]+\.)+[a-z]{2,}\b",
+                             incoming, re.IGNORECASE):
+            return link.start()
         # A clipped /səkˈs.../ can be recognized as "sex". Keep the full
         # word only when the next fragment repeats the request and recognizes it.
         tail = re.search(r"\b(?:can|could|would) you (look for a sex)[.?]?$",
@@ -188,6 +192,22 @@ class SentenceBuffer:
                 if 2 <= len(complete) - len(clipped) <= 4 and complete.startswith(clipped):
                     return tail.start()
         return None
+
+    @staticmethod
+    def _join_clause_continuations(text):
+        """Remove a false sentence boundary before a clear continuation."""
+        text = re.sub(
+            r"(\b(?:workplace charter|workplace policy|code of conduct))[.,]\s+"
+            r"you know,\s+one that\b",
+            r"\1, one that",
+            text, flags=re.IGNORECASE,
+        )
+        return re.sub(
+            r"\b(risk is that (?:we|they) (?:all )?work in the same way)\.\s+"
+            r"(think the same and see the)\b",
+            lambda match: f"{match[1]}, {match[2].lower()}",
+            text, flags=re.IGNORECASE,
+        )
 
     def _release_completed_prefix(self, now):
         """Emit coherent complete sentences but retain a dangling final clause.
@@ -216,6 +236,8 @@ class SentenceBuffer:
         fragment = " ".join(fragment.strip().split())
         if not fragment:
             return []
+        if language == "en":
+            fragment = self._join_clause_continuations(fragment)
         # Whisper's "new..." is a continuation cue, not a final period.
         unfinished = bool(re.search(r"(?:\.{2,}|…)[\"'”’]*$", fragment))
         if unfinished:
@@ -947,6 +969,7 @@ _HYM_GLOSSARY = (
     (r"workplace charter", "직장 내 공동 행동 원칙"),
     (r"team[ -]building sessions?", "팀워크 강화 활동"),
     (r"diversity and inclusion", "다양성과 포용성"),
+    (r"address (?:the )?diversity", "다양성을 어떻게 다룰지 논의하다"),
     (r"religions?,\s*ages", "종교와 나이"),
 )
 
@@ -981,13 +1004,7 @@ def _clarify_english_meaning(text):
         + " portion of the " + match[1],
         text, flags=re.IGNORECASE,
     )
-    # Restore the shared subject of a list split by Whisper's punctuation.
-    text = re.sub(
-        r"\b(risk is that (?:we|they) (?:all )?work in the same way)\.\s+"
-        r"(think the same and see the world)\b",
-        lambda match: f"{match[1]}, {match[2].lower()}",
-        text, flags=re.IGNORECASE,
-    )
+    text = SentenceBuffer._join_clause_continuations(text)
     # Resolve "before that" following one clearly named event in this chunk.
     return re.sub(
         r"(\b(?:run|hold|conduct) (?:a |an |the |some )?"
