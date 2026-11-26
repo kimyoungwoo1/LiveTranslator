@@ -1,15 +1,15 @@
 {
-  "version": "0.6.66",
+  "version": "0.6.67",
   "min_bootstrap": "0.6.0",
-  "notes": "Join English questions with their recognized complements, recover an open request from an overlapping restart, and deduplicate repeated words inside pending utterances.",
+  "notes": "Keep clearly linked English clauses together and use the verified continuation of a clipped web address. Clarify the meaning of address diversity.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.66/app_core.py",
+      "path": "updates/v0.6.67/app_core.py",
       "git_sha1": "19b225bcd91e86f5d9176a5627c3b7f66a372719"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.66/streaming_pipeline.py",
-      "git_sha1": "c893bfe1f2bb08dfa58aca3eb083871839a96d91"
+      "path": "updates/v0.6.67/streaming_pipeline.py",
+      "git_sha1": "ab719be41f16619de54da54267ad67351d7a78b7"
     }
   }
 }
