@@ -1,15 +1,15 @@
 {
-  "version": "0.6.61",
+  "version": "0.6.62",
   "min_bootstrap": "0.6.0",
-  "notes": "Improve technical meeting terminology and preserve inspection switch states. Suppress low-confidence, standalone English recognition artifacts.",
+  "notes": "Finish processing captured audio and translations when stopping. Repair clipped questions when the next recognition completes the word, and improve workplace glossary.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.61/app_core.py",
-      "git_sha1": "fed2e5a3a50ec5efe6ba98b4dacb828720072535"
+      "path": "updates/v0.6.62/app_core.py",
+      "git_sha1": "30a6a8add3d987121a9bdcfa95a1c25b9ef8299c"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.61/streaming_pipeline.py",
-      "git_sha1": "1b613c4d7234e6d8c4bb01d831ced6ec6c19feb7"
+      "path": "updates/v0.6.62/streaming_pipeline.py",
+      "git_sha1": "9f9f37cf244a4bfaa01a90884714868c237d7abd"
     }
   }
 }

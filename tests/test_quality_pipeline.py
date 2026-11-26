@@ -3,6 +3,7 @@ import importlib.util
 from pathlib import Path
 import re
 import sys
+import threading
 from types import SimpleNamespace
 import unittest
 from unittest import mock
@@ -26,6 +27,51 @@ class QualityTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.pipeline = load_pipeline()
+
+    def test_cut_question_is_repaired_by_an_overlapping_word_completion(self):
+        buf = self.pipeline.SentenceBuffer(5)
+        self.assertEqual(buf.add(
+            "Can you look for a success?", "en", 0, cut_mid_speech=True
+        ), [])
+        self.assertEqual(buf.add(
+            "Look for a successful speaker for the seminar?", "en", 6
+        ), [("Can you look for a successful speaker for the seminar?", "en")])
+
+    def test_stop_delivers_buffered_phrases_and_the_short_final_audio_block(self):
+        pipeline = self.pipeline
+        stop = threading.Event()
+        stream = mock.Mock()
+        samples = mock.MagicMock()
+        samples.size = 16000
+
+        def read(*args, **kwargs):
+            if stream.read.call_count == 1:
+                return b"first block"
+            stop.set()
+            return b"final audio"
+
+        stream.read.side_effect = read
+        model = mock.Mock()
+        model.transcribe.side_effect = [
+            ([SimpleNamespace(text="Can you look for a success?")], None),
+            ([SimpleNamespace(text="Look for a successful speaker")], None),
+        ]
+        results = []
+        with (mock.patch.object(pipeline, "resolve_capture_device", return_value={"name": "test"}),
+              mock.patch.object(pipeline, "open_capture_stream",
+                                return_value=(stream, 16000, 1, 1024, "test")),
+              mock.patch.object(pipeline, "audio_to_mono", return_value=samples),
+              mock.patch.object(pipeline.np, "concatenate", return_value=samples),
+              mock.patch.object(pipeline, "add_audio_context", return_value=(samples, samples)),
+              mock.patch.object(pipeline, "should_finalize_audio", side_effect=[True, False])):
+            counters = pipeline.run_stream(
+                None, 5, "en", model, lambda text, lang: "번역",
+                lambda status: None, lambda original: None,
+                lambda text, translated: results.append((text, translated)), stop, True,
+            )
+        self.assertEqual(model.transcribe.call_count, 2)
+        self.assertEqual(results, [("Can you look for a successful speaker", "번역")])
+        self.assertEqual(counters, (0, 0))
 
     def test_bare_you_only_filtered_as_a_low_confidence_standalone_result(self):
         join = self.pipeline._join_recognized_segments
