@@ -362,6 +362,26 @@ class HyMT2Tests(unittest.TestCase):
         )
         self.assertIn("watch for", pick("I'll keep an eye out for it.", "en"))
 
+    def test_meaning_guidance_flags_uncertainty_and_exact_scope(self):
+        hint = self.mod._hym_meaning_guidance
+        self.assertIn("stated risk", hint("There is a risk that the meeting could run late."))
+        self.assertIn("exact scope", hint("Only the night shift is affected."))
+        self.assertIn("경영진", hint("The management team prepared a charter."))
+        self.assertEqual(hint("The device management team restarted the service."), "")
+        self.assertEqual(hint("Please bring the report."), "")
+
+    def test_translation_input_clarifies_only_grounded_groups_and_events(self):
+        clarify = self.mod._clarify_english_meaning
+        self.assertEqual(clarify("Some team members might need help."),
+                         "A portion of the team members might need help.")
+        source = "We can hold a meeting with staff. Before that, send the agenda."
+        self.assertEqual(clarify(source),
+                         "We can hold a meeting with staff. Before the meeting, send the agenda.")
+        for ambiguous in ("Before that, send it to them.", "Can you give me some time?",
+                          "Some users' devices have a patch.", "We can schedule a meeting. Before that, ask Lee."):
+            with self.subTest(ambiguous=ambiguous):
+                self.assertEqual(clarify(ambiguous), ambiguous)
+
     def test_network_diagnostics_keep_terms_and_test_conditions(self):
         source = ("We'll collect logs with ZPA inspection enabled. "
                   "In the second test, SSL inspection was disabled.")

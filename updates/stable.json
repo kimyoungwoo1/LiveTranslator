@@ -1,15 +1,15 @@
 {
-  "version": "0.6.62",
+  "version": "0.6.63",
   "min_bootstrap": "0.6.0",
-  "notes": "Finish processing captured audio and translations when stopping. Repair clipped questions when the next recognition completes the word, and improve workplace glossary.",
+  "notes": "Preserve uncertainty and scope in English meeting translations, and clarify references to explicitly named events.",
   "files": {
     "app_core.py": {
-      "path": "updates/v0.6.62/app_core.py",
+      "path": "updates/v0.6.63/app_core.py",
       "git_sha1": "30a6a8add3d987121a9bdcfa95a1c25b9ef8299c"
     },
     "streaming_pipeline.py": {
-      "path": "updates/v0.6.62/streaming_pipeline.py",
-      "git_sha1": "9f9f37cf244a4bfaa01a90884714868c237d7abd"
+      "path": "updates/v0.6.63/streaming_pipeline.py",
+      "git_sha1": "1b36275477b9cec8bb166d7c62c11dc34a40d91f"
     }
   }
 }
